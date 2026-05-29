@@ -213,7 +213,7 @@
                 <button class="nav-tab active" data-tab="dashboard">📊 Dashboard</button>
                 <button class="nav-tab" data-tab="apis">🔌 APIs Espelhadas</button>
                 <button class="nav-tab" data-tab="tester">🧪 Testador</button>
-                <button class="nav-tab" onclick="window.open('https://swagger.io/tools/swagger-ui/', '_blank')">📚 Swagger</button>
+                <button class="nav-tab" onclick="window.open('https://mockflow-ura.netlify.app/api/mirrors', '_blank')">📚 Swagger</button>
                 <button class="nav-tab" data-tab="ajuda">📖 Help</button>
             </div>
         </div>
@@ -306,23 +306,90 @@
     </div>
 
     <div id="scenarioModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header"><h3 id="scenarioModalTitle">Editar Cenário</h3><button class="btn btn-secondary" onclick="closeScenarioModal()">✕</button></div>
-            <div class="modal-body">
-                <input type="hidden" id="scenarioIndex">
-                <div class="form-group"><label>Nome do Cenário *</label><input id="scenarioNome" placeholder="Ex: Cliente VIP"></div>
-                <div class="form-group"><label>MATCH (Condição)</label><textarea id="scenarioMatch" rows="3" placeholder='{"cpf": "12345678901"}'></textarea></div>
-                <div class="form-group"><label>Status HTTP</label><input id="scenarioStatus" type="number" value="200"></div>
-                <div class="form-group"><label>Delay (ms)</label><input id="scenarioDelay" type="number" value="0"></div>
-                <div class="form-group"><label>Response Body</label><textarea id="scenarioResponseBody" rows="8" placeholder='{"mensagem": "sucesso"}'></textarea></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="scenarioModalTitle">Editar Cenário</h3>
+            <button class="btn btn-secondary" onclick="closeScenarioModal()">✕</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="scenarioIndex">
+            
+            <!-- 1. NOME DO CENÁRIO -->
+            <div class="form-group">
+                <label>📌 Nome do Cenário *</label>
+                <input id="scenarioNome" placeholder="Ex: Cliente VIP, Cliente Bloqueado, Fallback">
+                <small>Identifique seu cenário para facilitar a gestão</small>
             </div>
-            <div class="modal-footer">
-                <button class="btn btn-danger" onclick="deleteScenario()">🗑️ Excluir</button>
-                <button class="btn btn-secondary" onclick="closeScenarioModal()">Cancelar</button>
-                <button class="btn btn-primary" onclick="saveScenario()">💾 Salvar Cenário</button>
+
+            <!-- 2. MATCH -->
+            <div class="form-group">
+                <label>🎯 MATCH (Condição para ativar este cenário)</label>
+                <textarea id="scenarioMatch" rows="3" placeholder='{"cpf": "12345678901"}'></textarea>
+                <small>💡 Dica: Use {} vazio para cenário fallback</small>
+            </div>
+
+            <!-- 3. REQUEST ESPERADO -->
+            <div class="form-group">
+                <label>📤 Request Esperado (O que a URA vai enviar)</label>
+                <textarea id="scenarioRequestExample" rows="5" placeholder='{
+  "regularAgendaIn": {
+    "parUF": "SP",
+    "parNomeCidade": "SAO PAULO"
+  }
+}'></textarea>
+                <small>📥 JSON que a URA NICE CXone vai enviar para a API</small>
+            </div>
+
+            <!-- 4. CAMPOS OBRIGATÓRIOS -->
+            <div class="form-group">
+                <label>🔒 Campos Obrigatórios (O que a URA precisa enviar)</label>
+                <textarea id="scenarioRequiredFields" rows="3" placeholder='[
+  "regularAgendaIn.parUF",
+  "regularAgendaIn.parNomeCidade"
+]'></textarea>
+                <small>⚠️ Se a URA não enviar estes campos, a API retorna erro</small>
+            </div>
+
+            <!-- 5. VALIDAR REQUEST -->
+            <div class="form-group">
+                <label>✅ Validar Request</label>
+                <select id="scenarioValidateRequest">
+                    <option value="false">❌ Não - Aceita qualquer request</option>
+                    <option value="true">✓ Sim - Verifica campos obrigatórios</option>
+                </select>
+            </div>
+
+            <!-- 6. STATUS HTTP -->
+            <div class="form-group">
+                <label>📊 Status HTTP</label>
+                <input id="scenarioStatus" type="number" value="200" placeholder="200">
+                <small>200 = Sucesso | 400 = Erro | 404 = Não encontrado | 500 = Erro servidor</small>
+            </div>
+
+            <!-- 7. DELAY -->
+            <div class="form-group">
+                <label>⏱️ Delay (ms) - Tempo de resposta</label>
+                <input id="scenarioDelay" type="number" value="0" placeholder="0">
+                <small>Simular latência. Ex: 1000 = 1 segundo</small>
+            </div>
+
+            <!-- 8. RESPONSE BODY -->
+            <div class="form-group">
+                <label>📥 Response Body (O que a API vai retornar)</label>
+                <textarea id="scenarioResponseBody" rows="6" placeholder='{
+  "codigo": 200,
+  "mensagem": "Agendamento realizado com sucesso"
+}'></textarea>
+                <small>📤 JSON que a URA NICE CXone vai receber como resposta</small>
             </div>
         </div>
+        <div class="modal-footer">
+            <button class="btn btn-danger" onclick="deleteScenario()">🗑️ Excluir Cenário</button>
+            <button class="btn btn-secondary" onclick="closeScenarioModal()">Cancelar</button>
+            <button class="btn btn-primary" onclick="saveScenario()">💾 Salvar Cenário</button>
+        </div>
     </div>
+</div>
 
     <script>
     let currentTab = 'dashboard';
@@ -407,46 +474,70 @@
         `).join('');
     }
 
-    function openScenarioModal(index) {
-        const s = currentApiScenarios[index];
-        document.getElementById('scenarioIndex').value = index;
-        document.getElementById('scenarioNome').value = s.nome || '';
-        document.getElementById('scenarioMatch').value = JSON.stringify(s.match || {}, null, 2);
-        document.getElementById('scenarioStatus').value = s.responseStatus || 200;
-        document.getElementById('scenarioDelay').value = s.delayMs || 0;
-        document.getElementById('scenarioResponseBody').value = JSON.stringify(s.responseBody || {}, null, 2);
-        document.getElementById('scenarioModal').classList.add('active');
-    }
+function openScenarioModal(index) {
+    const s = currentApiScenarios[index];
+    document.getElementById('scenarioIndex').value = index;
+    document.getElementById('scenarioNome').value = s.nome || '';
+    document.getElementById('scenarioMatch').value = JSON.stringify(s.match || {}, null, 2);
+    document.getElementById('scenarioStatus').value = s.responseStatus || 200;
+    document.getElementById('scenarioDelay').value = s.delayMs || 0;
+    document.getElementById('scenarioResponseBody').value = JSON.stringify(s.responseBody || {}, null, 2);
+    document.getElementById('scenarioRequestExample').value = JSON.stringify(s.requestExample || {}, null, 2);
+    document.getElementById('scenarioRequiredFields').value = JSON.stringify(s.requiredFields || [], null, 2);
+    document.getElementById('scenarioValidateRequest').value = s.validateRequest ? 'true' : 'false';
+    document.getElementById('scenarioModal').classList.add('active');
+}
 
     function saveScenario() {
-        const index = parseInt(document.getElementById('scenarioIndex').value);
-        let match, responseBody;
-        try { match = JSON.parse(document.getElementById('scenarioMatch').value); } catch(e) { alert('Match inválido'); return; }
-        try { responseBody = JSON.parse(document.getElementById('scenarioResponseBody').value); } catch(e) { alert('Response inválido'); return; }
-        const scenario = {
-            nome: document.getElementById('scenarioNome').value,
-            match: match,
-            responseStatus: parseInt(document.getElementById('scenarioStatus').value),
-            delayMs: parseInt(document.getElementById('scenarioDelay').value),
-            responseBody: responseBody
-        };
-        if (index >= 0 && index < currentApiScenarios.length) { currentApiScenarios[index] = scenario; }
-        else { currentApiScenarios.push(scenario); }
-        renderScenariosList();
-        closeScenarioModal();
-        hasChanges = true;
+    const index = parseInt(document.getElementById('scenarioIndex').value);
+    let match, responseBody, requestExample, requiredFields;
+    
+    try { match = JSON.parse(document.getElementById('scenarioMatch').value || '{}'); } catch(e) { alert('Match inválido'); return; }
+    try { responseBody = JSON.parse(document.getElementById('scenarioResponseBody').value); } catch(e) { alert('Response inválido'); return; }
+    try { requestExample = JSON.parse(document.getElementById('scenarioRequestExample').value || '{}'); } catch(e) { requestExample = {}; }
+    try { requiredFields = JSON.parse(document.getElementById('scenarioRequiredFields').value || '[]'); } catch(e) { requiredFields = []; }
+    
+    const scenario = {
+        nome: document.getElementById('scenarioNome').value,
+        match: match,
+        responseStatus: parseInt(document.getElementById('scenarioStatus').value),
+        delayMs: parseInt(document.getElementById('scenarioDelay').value),
+        responseBody: responseBody,
+        requestExample: requestExample,
+        requiredFields: requiredFields,
+        validateRequest: document.getElementById('scenarioValidateRequest').value === 'true'
+    };
+    
+    if (index >= 0 && index < currentApiScenarios.length) {
+        currentApiScenarios[index] = scenario;
+    } else {
+        currentApiScenarios.push(scenario);
     }
+    renderScenariosList();
+    closeScenarioModal();
+    hasChanges = true;
+    
+    const saveBtn = document.querySelector('#apiModal .modal-footer .btn-primary');
+    if (saveBtn) {
+        saveBtn.style.display = 'block';
+        saveBtn.innerHTML = '💾 Salvar Alterações *';
+        saveBtn.style.background = 'var(--warning)';
+    }
+}
 
-    function addScenario() {
-        document.getElementById('scenarioModalTitle').textContent = 'Novo Cenário';
-        document.getElementById('scenarioIndex').value = '-1';
-        document.getElementById('scenarioNome').value = '';
-        document.getElementById('scenarioMatch').value = '{}';
-        document.getElementById('scenarioStatus').value = '200';
-        document.getElementById('scenarioDelay').value = '0';
-        document.getElementById('scenarioResponseBody').value = '{"mensagem": "sucesso"}';
-        document.getElementById('scenarioModal').classList.add('active');
-    }
+function addScenario() {
+    document.getElementById('scenarioModalTitle').textContent = 'Novo Cenário';
+    document.getElementById('scenarioIndex').value = '-1';
+    document.getElementById('scenarioNome').value = '';
+    document.getElementById('scenarioMatch').value = '{}';
+    document.getElementById('scenarioStatus').value = '200';
+    document.getElementById('scenarioDelay').value = '0';
+    document.getElementById('scenarioResponseBody').value = '{\n  "mensagem": "sucesso"\n}';
+    document.getElementById('scenarioRequestExample').value = '{}';
+    document.getElementById('scenarioRequiredFields').value = '[]';
+    document.getElementById('scenarioValidateRequest').value = 'false';
+    document.getElementById('scenarioModal').classList.add('active');
+}
 
     function deleteScenario() {
         const index = parseInt(document.getElementById('scenarioIndex').value);

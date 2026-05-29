@@ -9,6 +9,7 @@
     "build": "echo 'Build completo'"
   },
   "dependencies": {
+    "@netlify/blobs": "^10.7.9",
     "express": "^4.19.2",
     "serverless-http": "^3.2.0",
     "swagger-ui-express": "^5.0.1"

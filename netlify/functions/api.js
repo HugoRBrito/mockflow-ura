@@ -4,6 +4,7 @@ const fs = require("fs");
 const path = require("path");
 const swaggerUi = require("swagger-ui-express");
 const { randomUUID } = require("crypto");
+const { getStore } = require("@netlify/blobs");
 
 const app = express();
 const DATA_FILE = path.join(__dirname, "../../data/apis.json");
@@ -11,18 +12,46 @@ const RUNTIME_FILE = path.join("/tmp", "mockflow-apis.json");
 
 app.use(express.json({ limit: "1mb" }));
 
-function readMirrors() {
+function readSeedMirrors() {
   try {
-    const file = fs.existsSync(RUNTIME_FILE) ? RUNTIME_FILE : DATA_FILE;
-    const raw = fs.readFileSync(file, "utf8").replace(/^\uFEFF/, "").trim();
+    const raw = fs.readFileSync(DATA_FILE, "utf8").replace(/^\uFEFF/, "").trim();
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
   }
 }
 
-function writeMirrors(mirrors) {
+function readRuntimeMirrors() {
+  try {
+    const file = fs.existsSync(RUNTIME_FILE) ? RUNTIME_FILE : DATA_FILE;
+    const raw = fs.readFileSync(file, "utf8").replace(/^\uFEFF/, "").trim();
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return readSeedMirrors();
+  }
+}
+
+function writeRuntimeMirrors(mirrors) {
   fs.writeFileSync(RUNTIME_FILE, `${JSON.stringify(mirrors, null, 2)}\n`, "utf8");
+}
+
+async function readMirrors() {
+  try {
+    const store = getStore("mockflow-ura");
+    const mirrors = await store.get("apis", { type: "json" });
+    return Array.isArray(mirrors) ? mirrors : readSeedMirrors();
+  } catch {
+    return readRuntimeMirrors();
+  }
+}
+
+async function writeMirrors(mirrors) {
+  try {
+    const store = getStore("mockflow-ura");
+    await store.setJSON("apis", mirrors);
+  } catch {
+    writeRuntimeMirrors(mirrors);
+  }
 }
 
 function toMirror(payload, existing = {}) {
@@ -158,9 +187,9 @@ function scenariosForOpenApi(mirror) {
   }));
 }
 
-function buildOpenApiSpec(req) {
+async function buildOpenApiSpec(req) {
   const grouped = new Map();
-  for (const mirror of readMirrors().filter((item) => item.active)) {
+  for (const mirror of (await readMirrors()).filter((item) => item.active)) {
     const key = `${mirror.method} ${mirror.path}`;
     if (!grouped.has(key)) grouped.set(key, []);
     grouped.get(key).push(...scenariosForOpenApi(mirror));
@@ -221,32 +250,32 @@ app.get("/api/health", (_req, res) => {
   res.json({ ok: true, service: "mockflow-ura" });
 });
 
-app.get("/api/mirrors", (_req, res) => {
-  res.json(readMirrors());
+app.get("/api/mirrors", async (_req, res) => {
+  res.json(await readMirrors());
 });
 
-app.post("/api/mirrors", (req, res) => {
+app.post("/api/mirrors", async (req, res) => {
   const errors = validateMirrorPayload(req.body || {});
   if (errors.length) {
     res.status(400).json({ errors });
     return;
   }
 
-  const mirrors = readMirrors();
+  const mirrors = await readMirrors();
   const mirror = toMirror(req.body);
   mirrors.unshift(mirror);
-  writeMirrors(mirrors);
+  await writeMirrors(mirrors);
   res.status(201).json(mirror);
 });
 
-app.put("/api/mirrors/:id", (req, res) => {
+app.put("/api/mirrors/:id", async (req, res) => {
   const errors = validateMirrorPayload(req.body || {});
   if (errors.length) {
     res.status(400).json({ errors });
     return;
   }
 
-  const mirrors = readMirrors();
+  const mirrors = await readMirrors();
   const index = mirrors.findIndex((item) => item.id === req.params.id);
   if (index === -1) {
     res.status(404).json({ error: "API espelhada nao encontrada." });
@@ -254,27 +283,27 @@ app.put("/api/mirrors/:id", (req, res) => {
   }
 
   mirrors[index] = toMirror(req.body, mirrors[index]);
-  writeMirrors(mirrors);
+  await writeMirrors(mirrors);
   res.json(mirrors[index]);
 });
 
-app.delete("/api/mirrors/:id", (_req, res) => {
-  const mirrors = readMirrors();
+app.delete("/api/mirrors/:id", async (_req, res) => {
+  const mirrors = await readMirrors();
   const nextMirrors = mirrors.filter((item) => item.id !== _req.params.id);
   if (nextMirrors.length === mirrors.length) {
     res.status(404).json({ error: "API espelhada nao encontrada." });
     return;
   }
 
-  writeMirrors(nextMirrors);
+  await writeMirrors(nextMirrors);
   res.status(204).end();
 });
 
-app.get("/openapi.json", (req, res) => {
+app.get("/openapi.json", async (req, res) => {
   res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
   res.set("Pragma", "no-cache");
   res.set("Expires", "0");
-  res.json(buildOpenApiSpec(req));
+  res.json(await buildOpenApiSpec(req));
 });
 
 app.use("/docs", swaggerUi.serve, swaggerUi.setup(null, {
@@ -287,7 +316,7 @@ app.use("/docs", swaggerUi.serve, swaggerUi.setup(null, {
 }));
 
 app.all("*", async (req, res) => {
-  const mirror = readMirrors().find((item) =>
+  const mirror = (await readMirrors()).find((item) =>
     item.active && normalize(item.method) === normalize(req.method) && normalize(item.path) === normalize(req.path)
   );
 

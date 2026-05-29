@@ -4,83 +4,20 @@ const fs = require("fs");
 const path = require("path");
 const swaggerUi = require("swagger-ui-express");
 const { randomUUID } = require("crypto");
-const { getStore } = require("@netlify/blobs");
 
 const app = express();
-const DATA_FILE = path.join(__dirname, "../../data/apis.json");
-const RUNTIME_FILE = path.join("/tmp", "mockflow-apis.json");
-
 app.use(express.json({ limit: "1mb" }));
 
-function readSeedMirrors() {
-  try {
-    const raw = fs.readFileSync(DATA_FILE, "utf8").replace(/^\uFEFF/, "").trim();
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
+// Caminho dos arquivos
+const DATA_DIR = "/tmp/data";
+const MIRRORS_FILE = path.join(DATA_DIR, "apis.json");
+
+// Garantir que a pasta existe
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
-function readRuntimeMirrors() {
-  try {
-    const file = fs.existsSync(RUNTIME_FILE) ? RUNTIME_FILE : DATA_FILE;
-    const raw = fs.readFileSync(file, "utf8").replace(/^\uFEFF/, "").trim();
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return readSeedMirrors();
-  }
-}
-
-function writeRuntimeMirrors(mirrors) {
-  fs.writeFileSync(RUNTIME_FILE, `${JSON.stringify(mirrors, null, 2)}\n`, "utf8");
-}
-
-async function readMirrors() {
-  try {
-    const store = getStore({ name: "mockflow-ura", consistency: "strong" });
-    const mirrors = await store.get("apis", { type: "json", consistency: "strong" });
-    return Array.isArray(mirrors) ? mirrors : readSeedMirrors();
-  } catch {
-    return readRuntimeMirrors();
-  }
-}
-
-async function writeMirrors(mirrors) {
-  try {
-    const store = getStore({ name: "mockflow-ura", consistency: "strong" });
-    await store.setJSON("apis", mirrors);
-  } catch {
-    writeRuntimeMirrors(mirrors);
-  }
-}
-
-function toMirror(payload, existing = {}) {
-  const now = new Date().toISOString();
-  const pathValue = String(payload.path || "/").trim();
-
-  return {
-    id: existing.id || randomUUID(),
-    nome: String(payload.nome || "").trim(),
-    method: String(payload.method || "GET").trim().toUpperCase(),
-    path: pathValue.startsWith("/") ? pathValue : `/${pathValue}`,
-    active: payload.active !== false,
-    scenarios: Array.isArray(payload.scenarios) ? payload.scenarios : [],
-    criadoEm: existing.criadoEm || now,
-    atualizadoEm: now
-  };
-}
-
-function validateMirrorPayload(payload) {
-  const errors = [];
-  if (!String(payload.nome || "").trim()) errors.push("Campo obrigatorio: nome");
-  if (!String(payload.path || "").trim()) errors.push("Campo obrigatorio: path");
-  if (!String(payload.method || "").trim()) errors.push("Campo obrigatorio: method");
-  if (payload.scenarios !== undefined && !Array.isArray(payload.scenarios)) {
-    errors.push("Scenarios deve ser um array.");
-  }
-  return errors;
-}
-
+// Funções auxiliares
 function normalize(value) {
   return String(value || "").trim().toLowerCase();
 }
@@ -112,323 +49,329 @@ function applyTemplate(value, req) {
       if (cleaned.startsWith("body.")) return getByPath(req.body || {}, cleaned.slice(5)) ?? "";
       if (cleaned === "method") return req.method;
       if (cleaned === "path") return req.path;
+      if (cleaned === "timestamp") return Date.now();
+      if (cleaned === "random") return Math.floor(Math.random() * 10000);
       return "";
     });
   }
-
   if (Array.isArray(value)) return value.map((item) => applyTemplate(item, req));
   if (value && typeof value === "object") {
     return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, applyTemplate(item, req)]));
   }
-
   return value;
 }
 
-function scenarioList(mirror) {
-  if (Array.isArray(mirror.scenarios) && mirror.scenarios.length) return mirror.scenarios;
-  return [{
-    nome: mirror.nome,
-    match: mirror.match || {},
-    responseStatus: mirror.responseStatus || 200,
-    responseBody: mirror.responseBody || {},
-    delayMs: mirror.delayMs || 0,
-    validateRequest: mirror.validateRequest === true,
-    requiredFields: mirror.requiredFields || [],
-    requestExample: mirror.requestExample || {}
-  }];
-}
-
-function scenarioMatches(scenario, req) {
-  for (const [key, expected] of Object.entries(scenario.match || {})) {
-    let actual;
-    if (key.startsWith("body.")) actual = getByPath(req.body || {}, key.slice(5));
-    else if (key.startsWith("query.")) actual = getByPath(req.query || {}, key.slice(6));
-    else if (key.startsWith("header.")) actual = req.get(key.slice(7));
-    else actual = getByPath(req.query || {}, key) ?? getByPath(req.body || {}, key);
-    if (normalize(actual) !== normalize(expected)) return false;
-  }
-  return true;
-}
-
-function selectScenario(mirror, req) {
-  return [...scenarioList(mirror)]
-    .sort((a, b) => Object.keys(b.match || {}).length - Object.keys(a.match || {}).length)
-    .find((scenario) => scenarioMatches(scenario, req));
-}
-
-function schemaFromExample(example) {
-  if (Array.isArray(example)) return { type: "array", items: schemaFromExample(example[0] ?? {}) };
-  if (example === null) return { nullable: true };
-  if (typeof example === "object") {
-    return {
-      type: "object",
-      additionalProperties: true,
-      properties: Object.fromEntries(Object.entries(example || {}).map(([key, value]) => [key, schemaFromExample(value)]))
-    };
-  }
-  if (typeof example === "number") return { type: Number.isInteger(example) ? "integer" : "number" };
-  if (typeof example === "boolean") return { type: "boolean" };
-  return { type: "string" };
-}
-
-function scenariosForOpenApi(mirror) {
-  return scenarioList(mirror).map((scenario, index) => ({
-    id: `${mirror.id || mirror.path}-${index}`,
-    nome: scenario.nome || mirror.nome,
-    match: scenario.match || {},
-    requestExample: scenario.requestExample || {},
-    requiredFields: scenario.requiredFields || [],
-    validateRequest: scenario.validateRequest === true,
-    responseStatus: Number(scenario.responseStatus || 200),
-    responseBody: scenario.responseBody || {},
-    method: mirror.method,
-    path: mirror.path,
-    tag: mirror.nome || "APIs"
-  }));
-}
-
-async function buildOpenApiSpec(req) {
-  const grouped = new Map();
-  
-  for (const mirror of (await readMirrors()).filter((item) => item.active)) {
-    const key = `${mirror.method} ${mirror.path}`;
-    if (!grouped.has(key)) grouped.set(key, []);
-    
-    const scenarios = scenarioList(mirror);
-    scenarios.forEach((scenario, idx) => {
-      grouped.get(key).push({
-        id: `${mirror.id || mirror.path}-${idx}`,
-        nome: scenario.nome || mirror.nome,
-        match: scenario.match || {},
-        requestExample: scenario.requestExample || {},
-        requiredFields: scenario.requiredFields || [],
-        validateRequest: scenario.validateRequest === true,
-        responseStatus: Number(scenario.responseStatus || 200),
-        responseBody: scenario.responseBody || {},
-        method: mirror.method,
-        path: mirror.path,
-        tag: mirror.nome || "APIs"
-      });
-    });
-  }
-
-  const paths = {};
-  for (const scenarios of grouped.values()) {
-    const first = scenarios[0];
-    const method = String(first.method || "GET").toLowerCase();
-    
-    // Cria exemplos de request para cada cenário
-    const requestExamples = {};
-    const responseExamples = {};
-    
-    scenarios.forEach(scenario => {
-      const nome = scenario.nome || 'Cenário';
-      
-      if (scenario.requestExample && Object.keys(scenario.requestExample).length > 0) {
-        requestExamples[slugify(nome)] = {
-          summary: nome,
-          value: scenario.requestExample
-        };
-      }
-      
-      if (scenario.responseBody && Object.keys(scenario.responseBody).length > 0) {
-        responseExamples[slugify(nome)] = {
-          summary: nome,
-          value: scenario.responseBody
-        };
-      }
-    });
-    
-    // Se não tem requestExample, tenta gerar do match
-    if (Object.keys(requestExamples).length === 0 && scenarios[0].match) {
-      const matchExample = {};
-      for (const [key, value] of Object.entries(scenarios[0].match)) {
-        if (key.startsWith("body.")) {
-          matchExample[key.replace("body.", "")] = value;
-        }
-      }
-      if (Object.keys(matchExample).length > 0) {
-        requestExamples["exemplo_match"] = {
-          summary: "Exemplo baseado no match",
-          value: matchExample
-        };
-      }
+// Leitura e escrita dos arquivos
+function readMirrors() {
+  try {
+    if (!fs.existsSync(MIRRORS_FILE)) {
+      fs.writeFileSync(MIRRORS_FILE, JSON.stringify([], null, 2));
+      return [];
     }
-    
-    // Monta o requestBody
-    let requestBody = undefined;
-    if (method === 'post' || method === 'put' || method === 'patch') {
-      requestBody = {
-        required: scenarios.some(s => s.validateRequest),
-        content: {
-          "application/json": {
-            schema: {
-              type: "object",
-              properties: {}
-            }
-          }
-        }
-      };
-      
-      if (Object.keys(requestExamples).length > 0) {
-        requestBody.content["application/json"].examples = requestExamples;
-      }
-    }
-    
-    // Monta as responses
-    const responses = {
-      200: {
-        description: "Sucesso",
-        content: {
-          "application/json": {
-            schema: { type: "object" }
-          }
-        }
-      },
-      400: { description: "Request inválido - campos obrigatórios ausentes" },
-      404: { description: "API ou cenário não encontrado" }
-    };
-    
-    if (Object.keys(responseExamples).length > 0) {
-      responses[200].content["application/json"].examples = responseExamples;
-    }
-    
-    // Descrição dos cenários
-    let description = `**API:** ${first.tag}\n\n`;
-    description += `**Cenários disponíveis:**\n`;
-    scenarios.forEach(scenario => {
-      const matchStr = scenario.match && Object.keys(scenario.match).length > 0 
-        ? JSON.stringify(scenario.match) 
-        : "fallback (qualquer request)";
-      description += `- **${scenario.nome}**: match ${matchStr} → HTTP ${scenario.responseStatus}\n`;
-    });
-    
-    paths[first.path] = paths[first.path] || {};
-    paths[first.path][method] = {
-      tags: [first.tag],
-      summary: first.tag,
-      description: description,
-      requestBody: requestBody,
-      responses: responses
-    };
+    const raw = fs.readFileSync(MIRRORS_FILE, "utf8");
+    const cleanJson = raw.replace(/^\uFEFF/, "").replace(/^ï»¿/, "").trim();
+    return JSON.parse(cleanJson);
+  } catch (error) {
+    console.error("Erro ao ler mirrors:", error);
+    return [];
   }
+}
 
+function writeMirrors(mirrors) {
+  fs.writeFileSync(MIRRORS_FILE, JSON.stringify(mirrors, null, 2));
+}
+
+function toMirror(payload, existing = {}) {
+  const now = new Date().toISOString();
+  const pathValue = String(payload.path || "/").trim();
   return {
-    openapi: "3.0.3",
-    info: {
-      title: "MockFlow URA",
-      version: "1.0.0",
-      description: "Documentacao interativa das APIs simuladas para testes de URA."
-    },
-    servers: [
-      { 
-        url: `${req.protocol}://${req.get("host")}`, 
-        description: "Servidor atual" 
-      }
-    ],
-    paths
+    id: existing.id || randomUUID(),
+    nome: String(payload.nome || "").trim(),
+    method: String(payload.method || "GET").trim().toUpperCase(),
+    path: pathValue.startsWith("/") ? pathValue : `/${pathValue}`,
+    active: payload.active !== false,
+    scenarios: Array.isArray(payload.scenarios) ? payload.scenarios : [],
+    criadoEm: existing.criadoEm || now,
+    atualizadoEm: now
   };
 }
+
+function validateMirrorPayload(payload) {
+  const errors = [];
+  if (!String(payload.nome || "").trim()) errors.push("Campo obrigatorio: nome");
+  if (!String(payload.path || "").trim()) errors.push("Campo obrigatorio: path");
+  if (!String(payload.method || "").trim()) errors.push("Campo obrigatorio: method");
+  return errors;
+}
+
+// ========== ROTAS ==========
 
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true, service: "mockflow-ura" });
 });
 
-app.get("/api/mirrors", async (_req, res) => {
-  res.json(await readMirrors());
+app.get("/api/mirrors", (_req, res) => {
+  res.json(readMirrors());
 });
 
-app.post("/api/mirrors", async (req, res) => {
-  const errors = validateMirrorPayload(req.body || {});
+app.post("/api/mirrors", (req, res) => {
+  const errors = validateMirrorPayload(req.body);
   if (errors.length) {
     res.status(400).json({ errors });
     return;
   }
-
-  const mirrors = await readMirrors();
+  const mirrors = readMirrors();
   const mirror = toMirror(req.body);
   mirrors.unshift(mirror);
-  await writeMirrors(mirrors);
+  writeMirrors(mirrors);
   res.status(201).json(mirror);
 });
 
-app.put("/api/mirrors/:id", async (req, res) => {
-  const errors = validateMirrorPayload(req.body || {});
-  if (errors.length) {
-    res.status(400).json({ errors });
-    return;
-  }
-
-  const mirrors = await readMirrors();
-  const index = mirrors.findIndex((item) => item.id === req.params.id);
+app.put("/api/mirrors/:id", (req, res) => {
+  const mirrors = readMirrors();
+  const index = mirrors.findIndex(item => item.id === req.params.id);
   if (index === -1) {
-    res.status(404).json({ error: "API espelhada nao encontrada." });
+    res.status(404).json({ error: "API espelhada nao encontrada" });
     return;
   }
-
   mirrors[index] = toMirror(req.body, mirrors[index]);
-  await writeMirrors(mirrors);
+  writeMirrors(mirrors);
   res.json(mirrors[index]);
 });
 
-app.delete("/api/mirrors/:id", async (_req, res) => {
-  const mirrors = await readMirrors();
-  const nextMirrors = mirrors.filter((item) => item.id !== _req.params.id);
-  if (nextMirrors.length === mirrors.length) {
-    res.status(404).json({ error: "API espelhada nao encontrada." });
+app.delete("/api/mirrors/:id", (req, res) => {
+  const mirrors = readMirrors();
+  const filtered = mirrors.filter(item => item.id !== req.params.id);
+  if (filtered.length === mirrors.length) {
+    res.status(404).json({ error: "API espelhada nao encontrada" });
     return;
   }
-
-  await writeMirrors(nextMirrors);
+  writeMirrors(filtered);
   res.status(204).end();
 });
 
-app.get("/openapi.json", async (req, res) => {
-  res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
-  res.set("Pragma", "no-cache");
-  res.set("Expires", "0");
-  res.json(await buildOpenApiSpec(req));
-});
+// ========== SWAGGER ==========
 
+function generateSwaggerDoc(req) {
+  const mirrors = readMirrors();
+  const paths = {};
+  
+  mirrors.forEach(api => {
+    if (!api.active) return;
+    
+    const path = api.path;
+    const method = api.method.toLowerCase();
+    
+    if (!paths[path]) paths[path] = {};
+    
+    const scenarios = api.scenarios && api.scenarios.length > 0 ? api.scenarios : [];
+    
+    // Cria exemplos
+    const examples = {};
+    const requestExamples = {};
+    
+    scenarios.forEach((scenario, idx) => {
+      const name = scenario.nome || `Cenário ${idx + 1}`;
+      
+      if (scenario.responseBody && Object.keys(scenario.responseBody).length > 0) {
+        examples[name] = {
+          summary: name,
+          value: scenario.responseBody
+        };
+      }
+      
+      if (scenario.requestExample && Object.keys(scenario.requestExample).length > 0) {
+        requestExamples[name] = {
+          summary: name,
+          value: scenario.requestExample
+        };
+      }
+    });
+    
+    // Se não tem exemplos, adiciona um padrão
+    if (Object.keys(examples).length === 0) {
+      examples["Resposta padrão"] = {
+        summary: "Resposta padrão",
+        value: { mensagem: "sucesso" }
+      };
+    }
+    
+    // Configuração do endpoint
+    const endpointConfig = {
+      summary: api.nome,
+      description: scenarios.map(s => `- ${s.nome || 'Cenário'}: ${s.match && Object.keys(s.match).length ? JSON.stringify(s.match) : 'fallback'}`).join('\n'),
+      responses: {
+        200: {
+          description: "Sucesso",
+          content: {
+            "application/json": {
+              examples: examples
+            }
+          }
+        },
+        400: {
+          description: "Requisição inválida - campos obrigatórios ausentes"
+        },
+        404: {
+          description: "API ou cenário não encontrado"
+        }
+      }
+    };
+    
+    // Adiciona request body para POST/PUT/PATCH
+    if (method === 'post' || method === 'put' || method === 'patch') {
+      endpointConfig.requestBody = {
+        required: true,
+        content: {
+          "application/json": {
+            examples: requestExamples
+          }
+        }
+      };
+    }
+    
+    paths[path][method] = endpointConfig;
+  });
+  
+  // Adiciona rota de health check
+  if (!paths["/api/health"]) {
+    paths["/api/health"] = {
+      get: {
+        summary: "Health Check",
+        responses: {
+          200: {
+            description: "Servidor online",
+            content: {
+              "application/json": {
+                example: { ok: true, service: "mockflow-ura" }
+              }
+            }
+          }
+        }
+      }
+    };
+  }
+  
+  return {
+    openapi: "3.0.0",
+    info: {
+      title: "MockFlow URA",
+      version: "1.0.0",
+      description: "Sistema de simulação de API para NICE CXone",
+      contact: {
+        name: "MockFlow URA"
+      }
+    },
+    servers: [
+      {
+        url: `https://${req.get("host")}`,
+        description: "Servidor atual"
+      }
+    ],
+    paths: paths
+  };
+}
+
+// Swagger UI
 app.use("/docs", swaggerUi.serve, swaggerUi.setup(null, {
   swaggerOptions: {
     url: "/openapi.json",
     persistAuthorization: true,
-    displayRequestDuration: true
+    displayRequestDuration: true,
+    docExpansion: "list",
+    filter: true,
+    showExtensions: true,
+    showCommonExtensions: true,
+    tryItOutEnabled: true
   },
-  customSiteTitle: "MockFlow URA - Swagger"
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: "MockFlow URA - API Documentation"
 }));
 
-app.all("*", async (req, res) => {
-  const mirror = (await readMirrors()).find((item) =>
-    item.active && normalize(item.method) === normalize(req.method) && normalize(item.path) === normalize(req.path)
+app.get("/openapi.json", (req, res) => {
+  res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+  res.json(generateSwaggerDoc(req));
+});
+
+// ========== MOCK ENDPOINTS ==========
+
+app.all("*", (req, res) => {
+  if (req.path.startsWith("/api") || req.path.startsWith("/docs") || req.path === "/openapi.json" || req.path.startsWith("/swagger")) {
+    return;
+  }
+  
+  const mirrors = readMirrors();
+  const mirror = mirrors.find(m => 
+    m.active && 
+    normalize(m.method) === normalize(req.method) && 
+    normalize(m.path) === normalize(req.path)
   );
-
+  
   if (!mirror) {
-    res.status(404).json({ codigo: "API_ESPELHADA_NAO_ENCONTRADA" });
-    return;
-  }
-
-  const scenario = selectScenario(mirror, req);
-  if (!scenario) {
-    res.status(404).json({ codigo: "CENARIO_NAO_ENCONTRADO" });
-    return;
-  }
-
-  const missing = scenario.validateRequest
-    ? (scenario.requiredFields || []).filter((field) => !hasValue(req.body || {}, field))
-    : [];
-  if (missing.length) {
-    res.status(400).json({
-      codigo: "REQUEST_INVALIDO",
-      mensagem: "Request nao possui campos obrigatorios",
-      camposObrigatoriosAusentes: missing
+    res.status(404).json({ 
+      error: "API espelhada nao encontrada",
+      path: req.path,
+      method: req.method
     });
     return;
   }
-
-  if (scenario.delayMs) await new Promise((resolve) => setTimeout(resolve, scenario.delayMs));
-  res.status(Number(scenario.responseStatus || 200)).json(applyTemplate(scenario.responseBody || {}, req));
+  
+  const scenarios = mirror.scenarios || [];
+  let selectedScenario = null;
+  
+  // Procura cenário por match
+  for (const scenario of scenarios) {
+    let matches = true;
+    for (const [key, expected] of Object.entries(scenario.match || {})) {
+      let actual;
+      if (key.startsWith("body.")) {
+        actual = getByPath(req.body || {}, key.slice(5));
+      } else if (key.startsWith("query.")) {
+        actual = getByPath(req.query || {}, key.slice(6));
+      } else {
+        actual = getByPath(req.query || {}, key) ?? getByPath(req.body || {}, key);
+      }
+      if (normalize(actual) !== normalize(expected)) {
+        matches = false;
+        break;
+      }
+    }
+    if (matches) {
+      selectedScenario = scenario;
+      break;
+    }
+  }
+  
+  // Se não achou, pega o primeiro cenário (fallback)
+  if (!selectedScenario && scenarios.length > 0) {
+    selectedScenario = scenarios[0];
+  }
+  
+  if (!selectedScenario) {
+    res.status(404).json({ error: "Nenhum cenário configurado" });
+    return;
+  }
+  
+  // Valida campos obrigatórios
+  if (selectedScenario.validateRequest && selectedScenario.requiredFields) {
+    const missing = selectedScenario.requiredFields.filter(field => !hasValue(req.body || {}, field));
+    if (missing.length) {
+      res.status(400).json({
+        error: "Campos obrigatórios ausentes",
+        missing_fields: missing
+      });
+      return;
+    }
+  }
+  
+  // Delay
+  if (selectedScenario.delayMs) {
+    setTimeout(() => {
+      res.status(selectedScenario.responseStatus || 200).json(applyTemplate(selectedScenario.responseBody || {}, req));
+    }, selectedScenario.delayMs);
+  } else {
+    res.status(selectedScenario.responseStatus || 200).json(applyTemplate(selectedScenario.responseBody || {}, req));
+  }
 });
 
 exports.handler = serverless(app);

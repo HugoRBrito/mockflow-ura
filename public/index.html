@@ -249,7 +249,7 @@
                 <button class="nav-tab active" data-tab="dashboard">📊 Dashboard</button>
                 <button class="nav-tab" data-tab="apis">🔌 APIs Espelhadas</button>
                 <button class="nav-tab" data-tab="tester">🧪 Testador</button>
-                <button class="nav-tab" onclick="openSwaggerModal()">📚 Swagger</button>
+                <button class="nav-tab" data-tab="docs">📚 Swagger</button>
                 <button class="nav-tab" data-tab="ajuda">📖 Help</button>
             </div>
         </div>
@@ -270,11 +270,10 @@
                 <div class="table-container">
                     <table id="latestApisTable">
                         <thead><tr><th>Nome da API</th><th>Método</th><th>Path</th><th>Cenários</th><th>Status</th></tr></thead>
-                        <tbody id="latestApisBody"><tr><td colspan="5" class="loading">Carregando...<\/td><\/tr>
-                    <\/tbody>
-                <\/table>
+                        <tbody id="latestApisBody"><tr><td colspan="5" class="loading">Carregando...<\/td><\/tr><\/tbody>
+                    <\/table>
+                <\/div>
             <\/div>
-        <\/div>
 
             <div class="dashboard-section">
                 <div class="section-header"><h3>💡 Dicas Rápidas</h3></div>
@@ -296,8 +295,7 @@
             <div class="table-container">
                 <table id="apisTable">
                     <thead><tr><th>Nome</th><th>Método</th><th>Path</th><th>Status</th><th>Ações</th></tr></thead>
-                    <tbody id="apisTableBody"><tr><td colspan="5" class="loading">Carregando...<\/td><\/tr>
-                    <\/tbody>
+                    <tbody id="apisTableBody"><tr><td colspan="5" class="loading">Carregando...<\/td><\/tr><\/tbody>
                 <\/table>
             <\/div>
         <\/div>
@@ -318,7 +316,7 @@
         </div>
 
         <!-- Swagger (iframe) -->
-        <div id="swagger" class="tab-content" style="display: none;">
+        <div id="docs" class="tab-content" style="display: none;">
             <iframe src="/docs" style="width: 100%; height: 80vh; border: none; border-radius: 1rem;"></iframe>
         </div>
 
@@ -376,19 +374,6 @@
         </div>
     </div>
 
-    <!-- Modal Swagger Popup -->
-    <div id="swaggerModal" class="modal">
-        <div class="modal-content" style="max-width: 1200px; width: 90%;">
-            <div class="modal-header">
-                <h3>📚 Swagger - Documentação da API</h3>
-                <button class="btn btn-secondary" onclick="closeSwaggerModal()">✕</button>
-            </div>
-            <div class="modal-body" style="padding: 0;">
-                <iframe id="swaggerIframe" src="/docs" style="width: 100%; height: 70vh; border: none; border-radius: 0.5rem;"></iframe>
-            </div>
-        </div>
-    </div>
-
     <script>
     let currentTab = 'dashboard';
     let apis = [];
@@ -402,38 +387,11 @@
             tab.classList.add('active');
             currentTab = tab.dataset.tab;
             document.querySelectorAll('.tab-content').forEach(content => content.style.display = 'none');
-            document.getElementById(currentTab).style.display = 'block';
+            const target = document.getElementById(currentTab);
+            if (target) target.style.display = 'block';
             if (currentTab === 'apis') loadApis();
             if (currentTab === 'dashboard') loadDashboard();
-            if (currentTab === 'swagger') {
-                const iframe = document.querySelector('#swagger iframe');
-                if (iframe) iframe.src = iframe.src;
-            }
-            if (currentTab === 'ajuda') {
-                const iframe = document.querySelector('#ajuda iframe');
-                if (iframe) iframe.src = iframe.src;
-            }
         });
-    });
-
-    // Funções do Swagger Modal
-    function openSwaggerModal() {
-        const modal = document.getElementById('swaggerModal');
-        const iframe = document.getElementById('swaggerIframe');
-        iframe.src = '/docs';
-        modal.classList.add('active');
-    }
-
-    function closeSwaggerModal() {
-        const modal = document.getElementById('swaggerModal');
-        const iframe = document.getElementById('swaggerIframe');
-        iframe.src = '';
-        modal.classList.remove('active');
-    }
-
-    // Fechar modal ao clicar fora
-    document.getElementById('swaggerModal')?.addEventListener('click', function(e) {
-        if (e.target === this) closeSwaggerModal();
     });
 
     // Dashboard

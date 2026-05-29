@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documentação - MockFlow URA</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #0f0f12;
+            color: #e4e4e7;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            color: #6366f1;
+        }
+
+        h2 {
+            font-size: 1.3rem;
+            margin: 1.5rem 0 1rem 0;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #2e2e35;
+            color: #818cf8;
+        }
+
+        h3 {
+            font-size: 1.1rem;
+            margin: 1rem 0 0.5rem 0;
+            color: #a1a1aa;
+        }
+
+        p {
+            color: #a1a1aa;
+            margin-bottom: 1rem;
+        }
+
+        .code {
+            background: #1a1a1f;
+            border: 1px solid #2e2e35;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin: 1rem 0;
+            overflow-x: auto;
+        }
+
+        .code pre {
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.8rem;
+            color: #e4e4e7;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.7rem;
+            font-weight: 500;
+            margin-right: 0.5rem;
+        }
+
+        .badge-get { background: #10b981; color: white; }
+        .badge-post { background: #6366f1; color: white; }
+        .badge-put { background: #f59e0b; color: black; }
+        .badge-delete { background: #ef4444; color: white; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+
+        th, td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #2e2e35;
+        }
+
+        th {
+            background: #1a1a1f;
+            color: #a1a1aa;
+            font-weight: 600;
+        }
+
+        hr {
+            border-color: #2e2e35;
+            margin: 1rem 0;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 2rem;
+            color: #a1a1aa;
+            font-size: 0.8rem;
+            border-top: 1px solid #2e2e35;
+            margin-top: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📖 MockFlow URA</h1>
+        <p>Sistema de Simulação de APIs para NICE CXone</p>
+
+        <hr>
+
+        <h2>🔍 Visão Geral</h2>
+        <p>Simulador de APIs para testes de integração com o <strong>NICE CXone</strong>. Permite criar APIs falsas que respondem de forma personalizada baseada nos dados enviados pela URA.</p>
+
+        <h2>🎯 Como Funciona</h2>
+        <div class="code">
+            <pre>1. URA envia request → 2. Sistema aplica MATCH → 3. Retorna resposta configurada</pre>
+        </div>
+
+        <h2>🎭 Cenários</h2>
+        <p>Cada API pode ter múltiplos cenários. O sistema escolhe baseado no MATCH.</p>
+        <div class="code">
+            <pre>// Exemplo: API /clientes
+Cenário 1: {"cpf": "111"} → {"status": "VIP"}
+Cenário 2: {"cpf": "222"} → {"status": "BLOQUEADO"}
+Cenário 3: {} (fallback) → {"status": "NORMAL"}</pre>
+        </div>
+
+        <h2>🎯 Match</h2>
+        <p>Condições para ativar um cenário.</p>
+        <div class="code">
+            <pre>// Por CPF
+{"cpf": "12345678901"}
+
+// Por campo do body
+{"body.uf": "SP"}
+
+// Por query string
+{"query.estado": "RJ"}
+
+// Fallback (qualquer request)
+{}</pre>
+        </div>
+
+        <h2>📝 Templates</h2>
+        <p>Use valores do request na resposta.</p>
+        <div class="code">
+            <pre>{
+  "cpf_recebido": "{{body.cpf}}",
+  "uf_recebida": "{{body.uf}}",
+  "protocolo": "PROT-{{timestamp}}"
+}</pre>
+        </div>
+
+        <h2>🔒 Validação</h2>
+        <p>Verifica se a URA enviou todos os campos obrigatórios.</p>
+        <div class="code">
+            <pre>// Campos Obrigatórios
+["cpf", "nome", "solicitante.nome"]</pre>
+        </div>
+
+        <h2>🔌 Endpoints do Sistema</h2>
+        <table>
+            <thead><tr><th>Método</th><th>Endpoint</th><th>Descrição</th></tr></thead>
+            <tbody>
+                <tr><td><span class="badge badge-get">GET</span></td><td>/api/health</td><td>Health check</td></tr>
+                <tr><td><span class="badge badge-get">GET</span></td><td>/api/mirrors</td><td>Lista APIs</td></tr>
+                <tr><td><span class="badge badge-post">POST</span></td><td>/api/mirrors</td><td>Cria API</td></tr>
+                <tr><td><span class="badge badge-put">PUT</span></td><td>/api/mirrors/:id</td><td>Atualiza API</td></tr>
+                <tr><td><span class="badge badge-delete">DELETE</span></td><td>/api/mirrors/:id</td><td>Remove API</td></tr>
+            </tbody>
+        </table>
+
+        <h2>💡 Exemplo</h2>
+        <div class="code">
+            <pre>// Cenário VIP
+Match: {"cpf": "11111111111"}
+Response: {"status": "VIP", "limite": 10000}
+
+// Cenário Bloqueado
+Match: {"cpf": "22222222222"}
+Response: {"status": "BLOQUEADO"}
+
+// Fallback
+Match: {}
+Response: {"status": "NORMAL"}</pre>
+        </div>
+
+        <h2>💪 Dicas</h2>
+        <ul style="color: #a1a1aa; margin-left: 1.5rem;">
+            <li>Sempre tenha um cenário FALLBACK com match {}</li>
+            <li>Use nomes descritivos nos cenários</li>
+            <li>Teste antes de colocar na URA</li>
+        </ul>
+
+        <h2>🔧 Problemas Comuns</h2>
+        <table>
+            <thead><tr><th>Problema</th><th>Solução</th></tr></thead>
+            <tbody>
+                <tr><td>Erro JSON inválido</td><td>Use aspas duplas "</td></tr>
+                <tr><td>Match não funciona</td><td>Use "body.campo" para campos aninhados</td></tr>
+                <tr><td>Porta 3000 ocupada</td><td>set PORT=3001 && npm start</td></tr>
+            </tbody>
+        </table>
+
+        <div class="footer">
+            MockFlow URA - NICE CXone Simulator v1.0
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "name": "mockflow-ura",
+  "version": "1.0.0",
+  "description": "Sistema de simulação de API para URA NICE CXone",
+  "main": "netlify/functions/api.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "build": "echo 'Build completo'"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "serverless-http": "^3.2.0",
+    "swagger-ui-express": "^5.0.1"
+  }
+}

@@ -207,6 +207,64 @@ app.all("*", (req, res) => {
     res.status(mirror.responseStatus || 200).json(applyTemplate(mirror.responseBody, req));
   }
 });
+// Swagger UI
+const swaggerUi = require("swagger-ui-express");
 
+// Documentação dinâmica baseada nas suas APIs
+function generateSwaggerDoc() {
+  const mirrors = readMirrors();
+  const paths = {};
+  
+  mirrors.forEach(api => {
+    const path = api.path;
+    const method = api.method.toLowerCase();
+    
+    if (!paths[path]) paths[path] = {};
+    
+    paths[path][method] = {
+      summary: api.nome,
+      description: `Cenários: ${api.scenarios?.length || 1} configurados`,
+      responses: {
+        200: {
+          description: "Sucesso",
+          content: {
+            "application/json": {
+              example: api.responseBody || {}
+            }
+          }
+        }
+      }
+    };
+  });
+  
+  return {
+    openapi: "3.0.0",
+    info: {
+      title: "MockFlow URA API",
+      version: "1.0.0",
+      description: "APIs simuladas para testes de URA NICE CXone"
+    },
+    servers: [
+      {
+        url: "https://mockflow-ura.netlify.app",
+        description: "Produção"
+      }
+    ],
+    paths: paths
+  };
+}
+
+// Rota para o JSON do Swagger
+app.get("/openapi.json", (req, res) => {
+  res.json(generateSwaggerDoc());
+});
+
+// Rota para o Swagger UI
+app.use("/docs", swaggerUi.serve, swaggerUi.setup(null, {
+  swaggerOptions: {
+    url: "/openapi.json",
+    persistAuthorization: true
+  }
+}));
 // Exportar
 exports.handler = serverless(app);

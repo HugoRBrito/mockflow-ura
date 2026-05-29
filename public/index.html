@@ -1,34 +1,19 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='grad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%236366f1'/%3E%3Cstop offset='100%25' stop-color='%238188f8'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' rx='25' fill='url(%23grad)'/%3E%3Ctext x='50' y='68' text-anchor='middle' fill='white' font-size='48' font-weight='bold' font-family='Arial'%3EMF%3C/text%3E%3C/svg%3E">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MockFlow URA - Sistema de Simulação para NICE CXone</title>
+    <title>MockFlow URA - Simulador para NICE CXone</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        :root {
-            --bg-primary: #0f0f12;
-            --bg-secondary: #1a1a1f;
-            --bg-tertiary: #25252b;
-            --text-primary: #e4e4e7;
-            --text-secondary: #a1a1aa;
-            --accent: #6366f1;
-            --accent-hover: #818cf8;
-            --success: #10b981;
-            --warning: #f59e0b;
-            --danger: #ef4444;
-            --border: #2e2e35;
-        }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            line-height: 1.6;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background: #0f0f12;
+            color: #e4e4e7;
         }
         .navbar {
-            background: var(--bg-secondary);
-            border-bottom: 1px solid var(--border);
+            background: #1a1a1f;
+            border-bottom: 1px solid #2e2e35;
             padding: 1rem 2rem;
             position: sticky;
             top: 0;
@@ -43,18 +28,21 @@
             flex-wrap: wrap;
             gap: 1rem;
         }
-        .logo { display: flex; align-items: center; gap: 10px; }
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
         .logo-icon {
-            width: 38px; height: 38px;
+            width: 38px;
+            height: 38px;
             background: linear-gradient(135deg, #6366f1, #818cf8);
             border-radius: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
         }
         .logo-icon span { color: white; font-weight: 800; font-size: 16px; }
-        .logo-text { display: flex; flex-direction: column; }
         .logo-text-main { font-weight: 700; font-size: 1.1rem; }
         .logo-text-main span { color: #6366f1; }
         .logo-subtitle { font-size: 0.65rem; color: #6366f1; }
@@ -63,13 +51,13 @@
             padding: 0.5rem 1rem;
             background: transparent;
             border: none;
-            color: var(--text-secondary);
+            color: #a1a1aa;
             cursor: pointer;
             border-radius: 0.5rem;
             transition: all 0.2s;
         }
-        .nav-tab:hover { background: var(--bg-tertiary); color: var(--text-primary); }
-        .nav-tab.active { background: var(--accent); color: white; }
+        .nav-tab:hover { background: #25252b; color: #e4e4e7; }
+        .nav-tab.active { background: #6366f1; color: white; }
         .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
         .stats-grid {
             display: grid;
@@ -78,26 +66,28 @@
             margin-bottom: 2rem;
         }
         .stat-card {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
+            background: #1a1a1f;
+            border: 1px solid #2e2e35;
             border-radius: 1rem;
             padding: 1.5rem;
-            transition: transform 0.2s;
         }
-        .stat-card:hover { transform: translateY(-2px); }
-        .stat-title { color: var(--text-secondary); font-size: 0.875rem; text-transform: uppercase; }
+        .stat-title { color: #a1a1aa; font-size: 0.875rem; text-transform: uppercase; }
         .stat-value { font-size: 2rem; font-weight: bold; margin-top: 0.5rem; }
-        .stat-subtitle { font-size: 0.7rem; color: var(--text-secondary); margin-top: 0.25rem; }
-        .table-container {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
+        .stat-subtitle { font-size: 0.7rem; color: #a1a1aa; margin-top: 0.25rem; }
+        .dashboard-section {
+            background: #1a1a1f;
+            border: 1px solid #2e2e35;
             border-radius: 1rem;
-            overflow-x: auto;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
         }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 1rem; text-align: left; border-bottom: 1px solid var(--border); }
-        th { background: var(--bg-tertiary); color: var(--text-secondary); font-weight: 600; font-size: 0.875rem; }
-        tr:hover { background: var(--bg-tertiary); }
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        .section-header h3 { font-size: 1.1rem; }
         .btn {
             padding: 0.5rem 1rem;
             border: none;
@@ -107,50 +97,20 @@
             font-weight: 500;
             transition: all 0.2s;
         }
-        .btn-primary { background: var(--accent); color: white; }
-        .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
-        .btn-danger { background: var(--danger); color: white; }
-        .btn-secondary { background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border); }
+        .btn-primary { background: #6366f1; color: white; }
+        .btn-primary:hover { background: #818cf8; }
+        .btn-secondary { background: #25252b; color: #e4e4e7; border: 1px solid #2e2e35; }
         .btn-sm { padding: 0.25rem 0.75rem; font-size: 0.75rem; }
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            z-index: 1000;
-            align-items: center;
-            justify-content: center;
-        }
-        .modal.active { display: flex; }
-        .modal-content {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
+        .table-container {
+            background: #1a1a1f;
+            border: 1px solid #2e2e35;
             border-radius: 1rem;
-            max-width: 900px;
-            width: 90%;
-            max-height: 90vh;
-            overflow-y: auto;
+            overflow-x: auto;
         }
-        .modal-header { padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-        .modal-body { padding: 1.5rem; }
-        .modal-footer { padding: 1rem 1.5rem; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 0.5rem; }
-        .form-group { margin-bottom: 1rem; }
-        label { display: block; margin-bottom: 0.5rem; color: var(--text-secondary); font-size: 0.875rem; }
-        input, select, textarea {
-            width: 100%;
-            padding: 0.5rem;
-            background: var(--bg-tertiary);
-            border: 1px solid var(--border);
-            border-radius: 0.5rem;
-            color: var(--text-primary);
-            font-size: 0.875rem;
-            text-align: left;
-        }
-        textarea { font-family: 'Monaco', 'Menlo', 'Consolas', monospace; }
-        input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 1rem; text-align: left; border-bottom: 1px solid #2e2e35; }
+        th { background: #25252b; color: #a1a1aa; }
+        tr:hover { background: #25252b; }
         .badge {
             display: inline-block;
             padding: 0.25rem 0.5rem;
@@ -158,11 +118,25 @@
             font-size: 0.75rem;
             font-weight: 500;
         }
-        .badge-active { background: var(--success); color: white; }
-        .badge-inactive { background: var(--danger); color: white; }
+        .badge-active { background: #10b981; color: white; }
+        .badge-inactive { background: #ef4444; color: white; }
+        .tips-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+        .tip-card {
+            background: #25252b;
+            border: 1px solid #2e2e35;
+            border-radius: 0.75rem;
+            padding: 1rem;
+        }
+        .tip-icon { font-size: 1.5rem; margin-bottom: 0.5rem; }
+        .tip-title { font-weight: 600; margin-bottom: 0.25rem; color: #6366f1; }
+        .tip-text { font-size: 0.75rem; color: #a1a1aa; }
         .api-tester {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
+            background: #1a1a1f;
+            border: 1px solid #2e2e35;
             border-radius: 1rem;
             padding: 1.5rem;
         }
@@ -173,61 +147,51 @@
             margin-top: 1rem;
         }
         .json-viewer {
-            background: var(--bg-tertiary);
-            border: 1px solid var(--border);
+            background: #25252b;
+            border: 1px solid #2e2e35;
             border-radius: 0.5rem;
             padding: 1rem;
             font-family: monospace;
             font-size: 0.75rem;
             overflow-x: auto;
-            white-space: pre-wrap;
         }
-        .scenario-card {
-            background: var(--bg-tertiary);
-            border: 1px solid var(--border);
-            border-radius: 0.5rem;
-            padding: 0.75rem;
-            margin-bottom: 0.75rem;
-            cursor: pointer;
-        }
-        .scenario-card:hover { border-color: var(--accent); }
-        .scenario-header { display: flex; justify-content: space-between; align-items: center; }
-        .scenario-name { color: var(--accent); font-weight: bold; }
-        .scenario-match { font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.5rem; font-family: monospace; }
-        .scenario-preview { font-size: 0.7rem; color: var(--text-secondary); margin-top: 0.25rem; }
-        hr { border-color: var(--border); margin: 1rem 0; }
-        .dashboard-section {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: 1rem;
-            padding: 1.5rem;
-            margin-bottom: 2rem;
-        }
-        .section-header {
-            display: flex;
-            justify-content: space-between;
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
             align-items: center;
-            margin-bottom: 1rem;
-            flex-wrap: wrap;
-            gap: 0.5rem;
+            justify-content: center;
         }
-        .section-header h3 { font-size: 1.1rem; font-weight: 600; }
-        .tips-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1rem;
+        .modal.active { display: flex; }
+        .modal-content {
+            background: #1a1a1f;
+            border: 1px solid #2e2e35;
+            border-radius: 1rem;
+            max-width: 900px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
         }
-        .tip-card {
-            background: var(--bg-tertiary);
-            border: 1px solid var(--border);
-            border-radius: 0.75rem;
-            padding: 1rem;
-            transition: transform 0.2s;
+        .modal-header { padding: 1rem; border-bottom: 1px solid #2e2e35; display: flex; justify-content: space-between; }
+        .modal-body { padding: 1rem; }
+        .modal-footer { padding: 1rem; border-top: 1px solid #2e2e35; display: flex; justify-content: flex-end; gap: 0.5rem; }
+        .form-group { margin-bottom: 1rem; }
+        label { display: block; margin-bottom: 0.5rem; color: #a1a1aa; font-size: 0.875rem; }
+        input, select, textarea {
+            width: 100%;
+            padding: 0.5rem;
+            background: #25252b;
+            border: 1px solid #2e2e35;
+            border-radius: 0.5rem;
+            color: #e4e4e7;
         }
-        .tip-card:hover { transform: translateY(-2px); border-color: var(--accent); }
-        .tip-icon { font-size: 1.5rem; margin-bottom: 0.5rem; }
-        .tip-title { font-weight: 600; margin-bottom: 0.25rem; color: var(--accent); }
-        .tip-text { font-size: 0.75rem; color: var(--text-secondary); }
+        textarea { font-family: monospace; }
+        hr { border-color: #2e2e35; margin: 1rem 0; }
         @media (max-width: 768px) {
             .navbar-content { flex-direction: column; }
             .request-response { grid-template-columns: 1fr; }
@@ -256,7 +220,6 @@
     </nav>
 
     <div class="container">
-        <!-- Dashboard -->
         <div id="dashboard" class="tab-content">
             <div class="stats-grid">
                 <div class="stat-card"><div class="stat-title">🔌 Total de APIs</div><div class="stat-value" id="totalApis">-</div><div class="stat-subtitle">APIs configuradas</div></div>
@@ -264,17 +227,15 @@
                 <div class="stat-card"><div class="stat-title">🎯 Com Match</div><div class="stat-value" id="apisComMatch">-</div><div class="stat-subtitle">Cenários específicos</div></div>
                 <div class="stat-card"><div class="stat-title">🎭 Total de Cenários</div><div class="stat-value" id="totalCenarios">-</div><div class="stat-subtitle">Fluxos diferentes</div></div>
             </div>
-
             <div class="dashboard-section">
                 <div class="section-header"><h3>📋 Últimas APIs Criadas</h3><button class="btn btn-secondary btn-sm" onclick="loadDashboard()">🔄 Atualizar</button></div>
                 <div class="table-container">
                     <table id="latestApisTable">
                         <thead><tr><th>Nome da API</th><th>Método</th><th>Path</th><th>Cenários</th><th>Status</th></tr></thead>
-                        <tbody id="latestApisBody"><tr><td colspan="5" class="loading">Carregando...<\/td><\/tr><\/tbody>
-                    <\/table>
-                <\/div>
-            <\/div>
-
+                        <tbody id="latestApisBody"><tr><td colspan="5" style="text-align:center">Carregando...</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
             <div class="dashboard-section">
                 <div class="section-header"><h3>💡 Dicas Rápidas</h3></div>
                 <div class="tips-grid">
@@ -286,7 +247,6 @@
             </div>
         </div>
 
-        <!-- APIs Espelhadas -->
         <div id="apis" class="tab-content" style="display: none;">
             <div style="margin-bottom: 1rem;">
                 <button class="btn btn-primary" onclick="openApiModal()">➕ Nova API</button>
@@ -295,17 +255,16 @@
             <div class="table-container">
                 <table id="apisTable">
                     <thead><tr><th>Nome</th><th>Método</th><th>Path</th><th>Status</th><th>Ações</th></tr></thead>
-                    <tbody id="apisTableBody"><tr><td colspan="5" class="loading">Carregando...<\/td><\/tr><\/tbody>
-                <\/table>
-            <\/div>
-        <\/div>
+                    <tbody id="apisTableBody"><tr><td colspan="5" style="text-align:center">Carregando...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
 
-        <!-- Testador -->
         <div id="tester" class="tab-content" style="display: none;">
             <div class="api-tester">
                 <h3>🔧 Testar API Espelhada</h3>
-                <div class="form-group"><label>URL Completa</label><input type="text" id="testUrl" placeholder="Ex: /clientes?cpf=12345678901"></div>
-                <div class="form-group"><label>Método</label><select id="testMethod"><option value="GET">GET</option><option value="POST">POST</option><option value="PUT">PUT</option><option value="DELETE">DELETE</option></select></div>
+                <div class="form-group"><label>URL Completa</label><input type="text" id="testUrl" placeholder="Ex: /clientes?cpf=123"></div>
+                <div class="form-group"><label>Método</label><select id="testMethod"><option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option></select></div>
                 <div class="form-group"><label>Body (JSON)</label><textarea id="testBody" rows="5" placeholder='{"key": "value"}'></textarea></div>
                 <button class="btn btn-primary" onclick="testApi()">Enviar Request</button>
                 <div class="request-response">
@@ -315,56 +274,47 @@
             </div>
         </div>
 
-        <!-- Swagger (iframe) -->
         <div id="docs" class="tab-content" style="display: none;">
             <iframe src="/docs" style="width: 100%; height: 80vh; border: none; border-radius: 1rem;"></iframe>
         </div>
 
-        <!-- Ajuda (iframe) -->
         <div id="ajuda" class="tab-content" style="display: none;">
             <iframe src="/ajuda.html" style="width: 100%; height: 80vh; border: none; border-radius: 1rem;"></iframe>
         </div>
     </div>
 
-    <!-- Modal API -->
     <div id="apiModal" class="modal">
-        <div class="modal-content" style="max-width: 1000px;">
+        <div class="modal-content">
             <div class="modal-header"><h3 id="apiModalTitle">Nova API</h3><button class="btn btn-secondary" onclick="closeApiModal()">✕</button></div>
             <div class="modal-body">
                 <input type="hidden" id="apiId">
-                <div class="form-group"><label>🏷️ Nome da API *</label><input id="apiNome" placeholder="Ex: Regular Agenda"></div>
-                <div class="form-group"><label>🔧 Método *</label><select id="apiMethod"><option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option></select></div>
-                <div class="form-group"><label>📍 Path *</label><input id="apiPath" placeholder="/api/endpoint"></div>
-                <div class="form-group"><label>🔘 API Ativa</label><select id="apiActive"><option value="true">✅ Sim</option><option value="false">❌ Não</option></select></div>
+                <div class="form-group"><label>Nome da API *</label><input id="apiNome" placeholder="Ex: Regular Agenda"></div>
+                <div class="form-group"><label>Método *</label><select id="apiMethod"><option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option></select></div>
+                <div class="form-group"><label>Path *</label><input id="apiPath" placeholder="/api/endpoint"></div>
+                <div class="form-group"><label>API Ativa</label><select id="apiActive"><option value="true">✅ Sim</option><option value="false">❌ Não</option></select></div>
                 <hr>
-                <div style="background: var(--bg-primary); padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem;">
-                    <label style="font-size: 1rem;">🎭 Cenários da API</label>
-                    <small style="color: var(--text-secondary); display: block;">Cada cenário tem um MATCH e uma RESPOSTA diferente.</small>
-                </div>
-                <div id="scenariosList"></div>
+                <label>Cenários da API</label>
+                <small>Cada cenário tem um MATCH e uma RESPOSTA diferente.</small>
+                <div id="scenariosList" style="margin-top: 1rem;"></div>
                 <button type="button" class="btn btn-primary" onclick="addScenario()" style="width: 100%; margin-top: 1rem;">➕ Adicionar Novo Cenário</button>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="closeApiModal()">Cancelar</button>
-                <button class="btn btn-primary" onclick="saveApiWithScenarios()" id="saveApiBtn">💾 Salvar API</button>
+                <button class="btn btn-primary" onclick="saveApiWithScenarios()">💾 Salvar API</button>
             </div>
         </div>
     </div>
 
-    <!-- Modal Cenário -->
     <div id="scenarioModal" class="modal">
         <div class="modal-content">
             <div class="modal-header"><h3 id="scenarioModalTitle">Editar Cenário</h3><button class="btn btn-secondary" onclick="closeScenarioModal()">✕</button></div>
             <div class="modal-body">
                 <input type="hidden" id="scenarioIndex">
-                <div class="form-group"><label>📌 Nome do Cenário *</label><input id="scenarioNome" placeholder="Ex: Cliente VIP, Cliente Bloqueado"></div>
-                <div class="form-group"><label>🎯 MATCH (Condição)</label><textarea id="scenarioMatch" rows="3" placeholder='{"cpf": "12345678901"}'></textarea><small>Deixe {} vazio para ser o cenário padrão</small></div>
-                <div class="form-group"><label>📤 Request Esperado (Exemplo)</label><textarea id="scenarioRequestExample" rows="5" placeholder='{"campo": "valor"}'></textarea></div>
-                <div class="form-group"><label>🔒 Campos Obrigatórios</label><textarea id="scenarioRequiredFields" rows="3" placeholder='["campo1", "campo2"]'></textarea></div>
-                <div class="form-group"><label>✅ Validar Request</label><select id="scenarioValidateRequest"><option value="false">❌ Não</option><option value="true">✓ Sim</option></select></div>
-                <div class="form-group"><label>📊 Status HTTP</label><input id="scenarioStatus" type="number" value="200"></div>
-                <div class="form-group"><label>⏱️ Delay (ms)</label><input id="scenarioDelay" type="number" value="0"></div>
-                <div class="form-group"><label>📥 Response Body</label><textarea id="scenarioResponseBody" rows="8" placeholder='{"mensagem": "sucesso"}'></textarea></div>
+                <div class="form-group"><label>Nome do Cenário *</label><input id="scenarioNome" placeholder="Ex: Cliente VIP"></div>
+                <div class="form-group"><label>MATCH (Condição)</label><textarea id="scenarioMatch" rows="3" placeholder='{"cpf": "12345678901"}'></textarea></div>
+                <div class="form-group"><label>Status HTTP</label><input id="scenarioStatus" type="number" value="200"></div>
+                <div class="form-group"><label>Delay (ms)</label><input id="scenarioDelay" type="number" value="0"></div>
+                <div class="form-group"><label>Response Body</label><textarea id="scenarioResponseBody" rows="8" placeholder='{"mensagem": "sucesso"}'></textarea></div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-danger" onclick="deleteScenario()">🗑️ Excluir</button>
@@ -380,83 +330,60 @@
     let currentApiScenarios = [];
     let hasChanges = false;
 
-    // Navegação entre abas
     document.querySelectorAll('.nav-tab').forEach(tab => {
         tab.addEventListener('click', () => {
             document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
             tab.classList.add('active');
             currentTab = tab.dataset.tab;
             document.querySelectorAll('.tab-content').forEach(content => content.style.display = 'none');
-            const target = document.getElementById(currentTab);
-            if (target) target.style.display = 'block';
+            const el = document.getElementById(currentTab);
+            if (el) el.style.display = 'block';
             if (currentTab === 'apis') loadApis();
             if (currentTab === 'dashboard') loadDashboard();
         });
     });
 
-    // Dashboard
     async function loadDashboard() {
         try {
             const res = await fetch('/api/mirrors');
             const data = await res.json();
-            const totalApis = data.length;
-            const ativas = data.filter(a => a.active).length;
-            const comMatch = data.filter(a => {
-                if (a.scenarios) return a.scenarios.some(s => s.match && Object.keys(s.match).length > 0);
-                return a.match && Object.keys(a.match).length > 0;
-            }).length;
+            document.getElementById('totalApis').textContent = data.length;
+            document.getElementById('apisAtivas').textContent = data.filter(a => a.active).length;
+            document.getElementById('apisComMatch').textContent = data.filter(a => a.match && Object.keys(a.match).length > 0).length;
             let totalCenarios = 0;
-            data.forEach(api => {
-                if (api.scenarios && api.scenarios.length) totalCenarios += api.scenarios.length;
-                else if (api.responseBody) totalCenarios += 1;
-            });
-            document.getElementById('totalApis').textContent = totalApis;
-            document.getElementById('apisAtivas').textContent = ativas;
-            document.getElementById('apisComMatch').textContent = comMatch;
+            data.forEach(api => { totalCenarios += api.scenarios ? api.scenarios.length : 1; });
             document.getElementById('totalCenarios').textContent = totalCenarios;
             
-            const latestApis = data.slice(-5).reverse();
             const tbody = document.getElementById('latestApisBody');
-            if (latestApis.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="loading">Nenhuma API cadastrada</td></tr>';
-                return;
-            }
-            tbody.innerHTML = latestApis.map(api => {
-                let cenariosCount = api.scenarios ? api.scenarios.length : 1;
-                return `<tr>
+            if (data.length === 0) { tbody.innerHTML = '<tr><td colspan="5">Nenhuma API cadastrada</td></tr>'; return; }
+            tbody.innerHTML = data.slice(-5).reverse().map(api => `
+                <tr>
                     <td><strong>${escapeHtml(api.nome)}</strong></td>
-                    <td><span class="badge" style="background: var(--accent);">${api.method}</span></td>
-                    <td><code style="font-size: 0.7rem;">${escapeHtml(api.path.substring(0, 50))}${api.path.length > 50 ? '...' : ''}</code></td>
-                    <td><span class="badge" style="background: var(--success);">${cenariosCount}</span></td>
+                    <td><span class="badge" style="background:#6366f1">${api.method}</span></td>
+                    <td><code>${escapeHtml(api.path.substring(0, 50))}</code></td>
+                    <td><span class="badge" style="background:#10b981">${api.scenarios ? api.scenarios.length : 1}</span></td>
                     <td><span class="badge ${api.active ? 'badge-active' : 'badge-inactive'}">${api.active ? 'Ativa' : 'Inativa'}</span></td>
-                </tr>`;
-            }).join('');
-        } catch (error) { console.error(error); }
+                </tr>
+            `).join('');
+        } catch(e) { console.error(e); }
     }
 
-    // APIs
     async function loadApis() {
         try {
             const res = await fetch('/api/mirrors');
             apis = await res.json();
-            renderApis();
-        } catch (error) { console.error(error); }
-    }
-
-    function renderApis() {
-        const search = document.getElementById('searchApi')?.value.toLowerCase() || '';
-        const filtered = apis.filter(a => a.nome.toLowerCase().includes(search) || a.path.toLowerCase().includes(search));
-        const tbody = document.getElementById('apisTableBody');
-        if (filtered.length === 0) { tbody.innerHTML = '<tr><td colspan="5">Nenhuma API encontrada</td></tr>'; return; }
-        tbody.innerHTML = filtered.map(a => `
-            <tr>
-                <td>${escapeHtml(a.nome)}</td>
-                <td><span class="badge" style="background: var(--accent);">${a.method}</span></td>
-                <td><code>${escapeHtml(a.path)}</code></td>
-                <td><span class="badge ${a.active ? 'badge-active' : 'badge-inactive'}">${a.active ? 'Ativa' : 'Inativa'}</span></td>
-                <td><button class="btn btn-secondary" onclick="editApi('${a.id}')">✏️</button> <button class="btn btn-danger" onclick="deleteApi('${a.id}')">🗑️</button></td>
-            </tr>
-        `).join('');
+            const tbody = document.getElementById('apisTableBody');
+            if (apis.length === 0) { tbody.innerHTML = '<tr><td colspan="5">Nenhuma API encontrada</td></tr>'; return; }
+            tbody.innerHTML = apis.map(a => `
+                <tr>
+                    <td>${escapeHtml(a.nome)}</td>
+                    <td><span class="badge" style="background:#6366f1">${a.method}</span></td>
+                    <td><code>${escapeHtml(a.path)}</code></td>
+                    <td><span class="badge ${a.active ? 'badge-active' : 'badge-inactive'}">${a.active ? 'Ativa' : 'Inativa'}</span></td>
+                    <td><button class="btn btn-secondary" onclick="editApi('${a.id}')">✏️</button> <button class="btn btn-danger" onclick="deleteApi('${a.id}')">🗑️</button></td>
+                </tr>
+            `).join('');
+        } catch(e) { console.error(e); }
     }
 
     async function deleteApi(id) {
@@ -465,33 +392,19 @@
         loadApis(); loadDashboard();
     }
 
-    // Cenários
     function renderScenariosList() {
         const container = document.getElementById('scenariosList');
         if (!container) return;
         if (currentApiScenarios.length === 0) {
-            container.innerHTML = `<div style="text-align: center; padding: 2rem; color: var(--text-secondary); border: 1px dashed var(--border); border-radius: 0.5rem;">📌 Nenhum cenário cadastrado<br>Clique em "Adicionar Novo Cenário"</div>`;
-            const saveBtn = document.querySelector('#apiModal .modal-footer .btn-primary');
-            if (saveBtn) saveBtn.style.display = 'none';
+            container.innerHTML = '<div style="text-align:center; padding:2rem;">Nenhum cenário cadastrado</div>';
             return;
         }
-        const saveBtn = document.querySelector('#apiModal .modal-footer .btn-primary');
-        if (saveBtn) { saveBtn.style.display = 'block'; saveBtn.innerHTML = hasChanges ? '💾 Salvar Alterações *' : '💾 Salvar API'; saveBtn.style.background = hasChanges ? 'var(--warning)' : 'var(--accent)'; }
-        let html = '<div style="display: flex; flex-direction: column; gap: 0.75rem;">';
-        currentApiScenarios.forEach((scenario, idx) => {
-            const matchStr = scenario.match && Object.keys(scenario.match).length > 0 ? JSON.stringify(scenario.match) : '🎯 Fallback (qualquer request)';
-            const hasMatch = scenario.match && Object.keys(scenario.match).length > 0;
-            let responsePreview = '';
-            if (scenario.responseBody) { const responseStr = JSON.stringify(scenario.responseBody); responsePreview = responseStr.substring(0, 80) + (responseStr.length > 80 ? '...' : ''); }
-            html += `<div class="scenario-card" onclick="openScenarioModal(${idx})">
-                <div class="scenario-header"><div><strong style="color: var(--accent);">${escapeHtml(scenario.nome || 'Cenário sem nome')}</strong>${!hasMatch ? '<span style="background: var(--warning); color: black; padding: 0.125rem 0.5rem; border-radius: 0.25rem; font-size: 0.7rem; margin-left: 0.5rem;">DEFAULT</span>' : ''}</div>
-                <div><span class="badge" style="background: var(--accent);">HTTP ${scenario.responseStatus || 200}</span></div></div>
-                <div class="scenario-match">🎯 Match: ${matchStr}</div>
-                <div class="scenario-preview">📥 Response: ${escapeHtml(responsePreview) || '{}'}</div>
-            </div>`;
-        });
-        html += '</div>';
-        container.innerHTML = html;
+        container.innerHTML = currentApiScenarios.map((s, i) => `
+            <div onclick="openScenarioModal(${i})" style="background:#25252b; padding:0.75rem; margin-bottom:0.5rem; border-radius:0.5rem; cursor:pointer;">
+                <strong>${escapeHtml(s.nome || 'Sem nome')}</strong>
+                <div style="font-size:0.7rem;">Match: ${JSON.stringify(s.match || {})}</div>
+            </div>
+        `).join('');
     }
 
     function openScenarioModal(index) {
@@ -502,31 +415,26 @@
         document.getElementById('scenarioStatus').value = s.responseStatus || 200;
         document.getElementById('scenarioDelay').value = s.delayMs || 0;
         document.getElementById('scenarioResponseBody').value = JSON.stringify(s.responseBody || {}, null, 2);
-        document.getElementById('scenarioRequestExample').value = JSON.stringify(s.requestExample || {}, null, 2);
-        document.getElementById('scenarioRequiredFields').value = JSON.stringify(s.requiredFields || [], null, 2);
-        document.getElementById('scenarioValidateRequest').value = s.validateRequest ? 'true' : 'false';
         document.getElementById('scenarioModal').classList.add('active');
     }
 
     function saveScenario() {
         const index = parseInt(document.getElementById('scenarioIndex').value);
-        let match, responseBody, requestExample, requiredFields;
+        let match, responseBody;
         try { match = JSON.parse(document.getElementById('scenarioMatch').value); } catch(e) { alert('Match inválido'); return; }
         try { responseBody = JSON.parse(document.getElementById('scenarioResponseBody').value); } catch(e) { alert('Response inválido'); return; }
-        try { requestExample = JSON.parse(document.getElementById('scenarioRequestExample').value || '{}'); } catch(e) { requestExample = {}; }
-        try { requiredFields = JSON.parse(document.getElementById('scenarioRequiredFields').value || '[]'); } catch(e) { requiredFields = []; }
         const scenario = {
             nome: document.getElementById('scenarioNome').value,
-            match: match, responseStatus: parseInt(document.getElementById('scenarioStatus').value),
-            delayMs: parseInt(document.getElementById('scenarioDelay').value), responseBody: responseBody,
-            requestExample: requestExample, requiredFields: requiredFields,
-            validateRequest: document.getElementById('scenarioValidateRequest').value === 'true'
+            match: match,
+            responseStatus: parseInt(document.getElementById('scenarioStatus').value),
+            delayMs: parseInt(document.getElementById('scenarioDelay').value),
+            responseBody: responseBody
         };
         if (index >= 0 && index < currentApiScenarios.length) { currentApiScenarios[index] = scenario; }
         else { currentApiScenarios.push(scenario); }
-        renderScenariosList(); closeScenarioModal(); hasChanges = true;
-        const saveBtn = document.querySelector('#apiModal .modal-footer .btn-primary');
-        if (saveBtn) { saveBtn.style.display = 'block'; saveBtn.innerHTML = '💾 Salvar Alterações *'; saveBtn.style.background = 'var(--warning)'; }
+        renderScenariosList();
+        closeScenarioModal();
+        hasChanges = true;
     }
 
     function addScenario() {
@@ -536,16 +444,18 @@
         document.getElementById('scenarioMatch').value = '{}';
         document.getElementById('scenarioStatus').value = '200';
         document.getElementById('scenarioDelay').value = '0';
-        document.getElementById('scenarioResponseBody').value = '{\n  "mensagem": "sucesso"\n}';
-        document.getElementById('scenarioRequestExample').value = '{}';
-        document.getElementById('scenarioRequiredFields').value = '[]';
-        document.getElementById('scenarioValidateRequest').value = 'false';
+        document.getElementById('scenarioResponseBody').value = '{"mensagem": "sucesso"}';
         document.getElementById('scenarioModal').classList.add('active');
     }
 
     function deleteScenario() {
         const index = parseInt(document.getElementById('scenarioIndex').value);
-        if (index >= 0 && confirm('Excluir este cenário?')) { currentApiScenarios.splice(index, 1); renderScenariosList(); closeScenarioModal(); hasChanges = true; }
+        if (index >= 0 && confirm('Excluir?')) {
+            currentApiScenarios.splice(index, 1);
+            renderScenariosList();
+            closeScenarioModal();
+            hasChanges = true;
+        }
     }
 
     function closeScenarioModal() { document.getElementById('scenarioModal').classList.remove('active'); }
@@ -572,7 +482,7 @@
         document.getElementById('apiMethod').value = api.method;
         document.getElementById('apiPath').value = api.path;
         document.getElementById('apiActive').value = api.active;
-        currentApiScenarios = (api.scenarios && api.scenarios.length > 0) ? api.scenarios : [];
+        currentApiScenarios = api.scenarios || [];
         hasChanges = false;
         renderScenariosList();
         document.getElementById('apiModal').classList.add('active');
@@ -581,9 +491,7 @@
     async function saveApiWithScenarios() {
         const id = document.getElementById('apiId').value;
         const nome = document.getElementById('apiNome').value;
-        if (!nome) { alert('Nome da API é obrigatório'); return; }
-        if (currentApiScenarios.length === 0) { alert('Adicione pelo menos um cenário'); return; }
-        
+        if (!nome) { alert('Nome é obrigatório'); return; }
         const data = {
             nome: nome,
             method: document.getElementById('apiMethod').value,
@@ -591,17 +499,11 @@
             active: document.getElementById('apiActive').value === 'true',
             scenarios: currentApiScenarios
         };
-        
         try {
             const url = id ? `/api/mirrors/${id}` : '/api/mirrors';
             const method = id ? 'PUT' : 'POST';
-            const res = await fetch(url, { 
-                method: method, 
-                headers: { 'Content-Type': 'application/json' }, 
-                body: JSON.stringify(data) 
-            });
+            const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
             if (res.ok) {
-                hasChanges = false;
                 closeApiModal();
                 loadApis();
                 loadDashboard();
@@ -609,34 +511,28 @@
                 const err = await res.json();
                 alert('Erro: ' + JSON.stringify(err.errors || err));
             }
-        } catch (error) {
-            alert('Erro ao salvar: ' + error.message);
-        }
+        } catch(e) { alert('Erro ao salvar: ' + e.message); }
     }
 
-    function closeApiModal() {
-        if (hasChanges && !confirm('Alterações não salvas. Deseja fechar?')) return;
-        document.getElementById('apiModal').classList.remove('active');
-        hasChanges = false;
-    }
+    function closeApiModal() { document.getElementById('apiModal').classList.remove('active'); }
 
     async function testApi() {
         const url = document.getElementById('testUrl').value;
         const method = document.getElementById('testMethod').value;
         let body = null;
         try { body = JSON.parse(document.getElementById('testBody').value); } catch(e) {}
-        const requestUrl = url.startsWith('http') ? url : `/${url.replace(/^\//, '')}`;
+        const requestUrl = url.startsWith('http') ? url : '/' + url.replace(/^\//, '');
         document.getElementById('testRequest').textContent = JSON.stringify({ url: requestUrl, method, body }, null, 2);
         try {
             const res = await fetch(requestUrl, { method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
             const data = await res.json();
             document.getElementById('testResponse').textContent = JSON.stringify({ status: res.status, data }, null, 2);
-        } catch (error) { document.getElementById('testResponse').textContent = JSON.stringify({ error: error.message }, null, 2); }
+        } catch(e) { document.getElementById('testResponse').textContent = JSON.stringify({ error: e.message }, null, 2); }
     }
 
     function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m])); }
 
-    document.getElementById('searchApi')?.addEventListener('input', () => renderApis());
+    document.getElementById('searchApi')?.addEventListener('input', () => loadApis());
     loadDashboard();
     </script>
 </body>

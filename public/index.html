@@ -99,6 +99,15 @@
         }
         .btn-primary { background: #6366f1; color: white; }
         .btn-primary:hover { background: #818cf8; }
+        .btn-save-dirty {
+            background: #f59e0b;
+            color: #111827;
+            border: 1px solid #fbbf24;
+        }
+        .btn-save-dirty:hover {
+            background: #d97706;
+            color: white;
+        }
         .btn-secondary { background: #25252b; color: #e4e4e7; border: 1px solid #2e2e35; }
         .btn-danger {
             background: #dc2626;
@@ -284,7 +293,7 @@
         </div>
 
         <div id="docs" class="tab-content" style="display: none;">
-            <iframe src="/docs" style="width: 100%; height: 80vh; border: none; border-radius: 1rem;"></iframe>
+            <iframe id="docsFrame" src="/docs" style="width: 100%; height: 80vh; border: none; border-radius: 1rem;"></iframe>
         </div>
 
         <div id="ajuda" class="tab-content" style="display: none;">
@@ -416,8 +425,22 @@
             if (el) el.style.display = 'block';
             if (currentTab === 'apis') loadApis();
             if (currentTab === 'dashboard') loadDashboard();
+            if (currentTab === 'docs') reloadSwagger();
         });
     });
+
+    function reloadSwagger() {
+        const frame = document.getElementById('docsFrame');
+        if (frame) frame.src = `/docs?ts=${Date.now()}`;
+    }
+
+    function resetApiSaveButton() {
+        const saveBtn = document.querySelector('#apiModal .modal-footer .btn-primary, #apiModal .modal-footer .btn-save-dirty');
+        if (!saveBtn) return;
+        saveBtn.classList.remove('btn-save-dirty');
+        saveBtn.classList.add('btn-primary');
+        saveBtn.innerHTML = '💾 Salvar API';
+    }
 
     async function loadDashboard() {
         try {
@@ -526,11 +549,12 @@ function openScenarioModal(index) {
     closeScenarioModal();
     hasChanges = true;
     
-    const saveBtn = document.querySelector('#apiModal .modal-footer .btn-primary');
+    const saveBtn = document.querySelector('#apiModal .modal-footer .btn-primary, #apiModal .modal-footer .btn-save-dirty');
     if (saveBtn) {
         saveBtn.style.display = 'block';
         saveBtn.innerHTML = '💾 Salvar Alterações *';
-        saveBtn.style.background = 'var(--warning)';
+        saveBtn.classList.remove('btn-primary');
+        saveBtn.classList.add('btn-save-dirty');
     }
 }
 
@@ -569,6 +593,7 @@ function addScenario() {
         document.getElementById('apiActive').value = 'true';
         currentApiScenarios = [];
         hasChanges = false;
+        resetApiSaveButton();
         renderScenariosList();
         document.getElementById('apiModal').classList.add('active');
     }
@@ -584,6 +609,7 @@ function addScenario() {
         document.getElementById('apiActive').value = api.active;
         currentApiScenarios = api.scenarios || [];
         hasChanges = false;
+        resetApiSaveButton();
         renderScenariosList();
         document.getElementById('apiModal').classList.add('active');
     }
@@ -607,6 +633,7 @@ function addScenario() {
                 closeApiModal();
                 loadApis();
                 loadDashboard();
+                reloadSwagger();
             } else {
                 const err = await res.json();
                 alert('Erro: ' + JSON.stringify(err.errors || err));

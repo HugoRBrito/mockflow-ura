@@ -708,18 +708,9 @@ app.get("/openapi.json", async (req, res, next) => {
   }
 });
 
-app.use(
-  "/docs",
-  swaggerUi.serve,
-  swaggerUi.setup(null, {
-    swaggerOptions: {
-      url: "/openapi.json",
-      persistAuthorization: true,
-      displayRequestDuration: true
-    },
-    customSiteTitle: "APIs Espelhadas - Swagger"
-  })
-);
+app.get("/docs", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "docs.html"));
+});
 
 app.get("/api/massas", async (req, res, next) => {
   try {

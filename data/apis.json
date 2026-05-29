@@ -1,1 +1,56 @@
-[]
+[
+  {
+    "id": "ba91366a-3782-4e6e-b6a4-d5ed3b76c925",
+    "nome": "Regular Agenda",
+    "method": "POST",
+    "path": "/AgendaAtendimentoSocorristaIntegrationService/AgendaAtendimentoSocorristaIntegrationServiceRestV1_0/RegularAgenda",
+    "active": true,
+    "scenarios": [
+      {
+        "nome": "teste",
+        "match": {},
+        "responseStatus": 200,
+        "delayMs": 0,
+        "responseBody": {
+          "regularAgendaOut": {
+            "regulacoes": {
+              "regulacao": {
+                "status": "OK",
+                "chaveReserva": "0902202610000021463",
+                "faixaHorario": "10:00-12:00",
+                "dataHoraServico": "09/02/2026 10:00",
+                "descricaoStatus": "SC",
+                "dataHoraProgramacaoFinal": "2026-02-09T12:00:00"
+              }
+            }
+          }
+        },
+        "requestExample": {
+          "regularAgendaIn": {
+            "parDataHoraServico": "2026-02-09T10:18:00",
+            "parNomeCidade": "SAO PAULO",
+            "parUF": "SP",
+            "parCodigoEspecialidade": "63",
+            "parLatitude": -23.5649224,
+            "parLongitude": -46.6519376,
+            "parCodigoCatTar": "0",
+            "parCodigoOrigem": "9",
+            "parCodigoAssistencia": "0",
+            "parCodigoNatureza": "0",
+            "parCodigoSubNatureza": "0",
+            "parCodigoVeiculo": "0",
+            "parTipoEndereco": "3",
+            "parServicoImediato": "N",
+            "parEmpresa": "51",
+            "parCodigoSistemaOrigem": "36",
+            "parCodigoProblema": "886"
+          }
+        },
+        "requiredFields": [],
+        "validateRequest": true
+      }
+    ],
+    "criadoEm": "2026-05-29T20:56:15.145Z",
+    "atualizadoEm": "2026-05-29T20:56:15.145Z"
+  }
+]

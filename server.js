@@ -571,6 +571,38 @@ function scenarioDescription(scenarios) {
     .join("\n");
 }
 
+function scenariosForOpenApi(mirror) {
+  if (Array.isArray(mirror.scenarios) && mirror.scenarios.length) {
+    return mirror.scenarios.map((scenario, index) => ({
+      id: `${mirror.id || mirror.path}-${index}`,
+      nome: scenario.nome || mirror.nome,
+      match: scenario.match || {},
+      requestExample: scenario.requestExample || {},
+      requiredFields: scenario.requiredFields || [],
+      validateRequest: scenario.validateRequest === true,
+      responseStatus: Number(scenario.responseStatus || 200),
+      responseBody: scenario.responseBody || {},
+      method: mirror.method,
+      path: mirror.path,
+      tag: mirror.nome || "APIs"
+    }));
+  }
+
+  return [{
+    id: mirror.id,
+    nome: mirror.nome,
+    match: mirror.match || {},
+    requestExample: mirror.requestExample || {},
+    requiredFields: mirror.requiredFields || [],
+    validateRequest: mirror.validateRequest === true,
+    responseStatus: Number(mirror.responseStatus || 200),
+    responseBody: mirror.responseBody || {},
+    method: mirror.method,
+    path: mirror.path,
+    tag: mirror.nome || mirror.slug || "APIs"
+  }];
+}
+
 async function buildOpenApiSpec(req) {
   const mirrors = await readMirrors();
   const activeMirrors = mirrors.filter((mirror) => mirror.active);
@@ -579,7 +611,7 @@ async function buildOpenApiSpec(req) {
   for (const mirror of activeMirrors) {
     const key = `${mirror.method} ${mirror.path}`;
     if (!grouped.has(key)) grouped.set(key, []);
-    grouped.get(key).push(mirror);
+    grouped.get(key).push(...scenariosForOpenApi(mirror));
   }
 
   const paths = {};
@@ -612,7 +644,7 @@ async function buildOpenApiSpec(req) {
 
     paths[openApiPath] = paths[openApiPath] || {};
     paths[openApiPath][method] = {
-      tags: [first.slug],
+      tags: [first.tag],
       summary: first.nome,
       description: scenarioDescription(scenarios),
       parameters: queryParametersFromScenarios(scenarios),

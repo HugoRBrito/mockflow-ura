@@ -189,48 +189,127 @@ function scenariosForOpenApi(mirror) {
 
 async function buildOpenApiSpec(req) {
   const grouped = new Map();
+  
   for (const mirror of (await readMirrors()).filter((item) => item.active)) {
     const key = `${mirror.method} ${mirror.path}`;
     if (!grouped.has(key)) grouped.set(key, []);
-    grouped.get(key).push(...scenariosForOpenApi(mirror));
+    
+    const scenarios = scenarioList(mirror);
+    scenarios.forEach((scenario, idx) => {
+      grouped.get(key).push({
+        id: `${mirror.id || mirror.path}-${idx}`,
+        nome: scenario.nome || mirror.nome,
+        match: scenario.match || {},
+        requestExample: scenario.requestExample || {},
+        requiredFields: scenario.requiredFields || [],
+        validateRequest: scenario.validateRequest === true,
+        responseStatus: Number(scenario.responseStatus || 200),
+        responseBody: scenario.responseBody || {},
+        method: mirror.method,
+        path: mirror.path,
+        tag: mirror.nome || "APIs"
+      });
+    });
   }
 
   const paths = {};
   for (const scenarios of grouped.values()) {
     const first = scenarios[0];
     const method = String(first.method || "GET").toLowerCase();
-    const examples = Object.fromEntries(scenarios.map((scenario) => [
-      slugify(scenario.nome || scenario.id) || scenario.id,
-      { summary: scenario.nome, value: scenario.responseBody }
-    ]));
-    const requestExamples = Object.fromEntries(scenarios
-      .filter((scenario) => Object.keys(scenario.requestExample || {}).length)
-      .map((scenario) => [
-        slugify(scenario.nome || scenario.id) || scenario.id,
-        { summary: scenario.nome, value: scenario.requestExample }
-      ]));
-
+    
+    // Cria exemplos de request para cada cenário
+    const requestExamples = {};
+    const responseExamples = {};
+    
+    scenarios.forEach(scenario => {
+      const nome = scenario.nome || 'Cenário';
+      
+      if (scenario.requestExample && Object.keys(scenario.requestExample).length > 0) {
+        requestExamples[slugify(nome)] = {
+          summary: nome,
+          value: scenario.requestExample
+        };
+      }
+      
+      if (scenario.responseBody && Object.keys(scenario.responseBody).length > 0) {
+        responseExamples[slugify(nome)] = {
+          summary: nome,
+          value: scenario.responseBody
+        };
+      }
+    });
+    
+    // Se não tem requestExample, tenta gerar do match
+    if (Object.keys(requestExamples).length === 0 && scenarios[0].match) {
+      const matchExample = {};
+      for (const [key, value] of Object.entries(scenarios[0].match)) {
+        if (key.startsWith("body.")) {
+          matchExample[key.replace("body.", "")] = value;
+        }
+      }
+      if (Object.keys(matchExample).length > 0) {
+        requestExamples["exemplo_match"] = {
+          summary: "Exemplo baseado no match",
+          value: matchExample
+        };
+      }
+    }
+    
+    // Monta o requestBody
+    let requestBody = undefined;
+    if (method === 'post' || method === 'put' || method === 'patch') {
+      requestBody = {
+        required: scenarios.some(s => s.validateRequest),
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: {}
+            }
+          }
+        }
+      };
+      
+      if (Object.keys(requestExamples).length > 0) {
+        requestBody.content["application/json"].examples = requestExamples;
+      }
+    }
+    
+    // Monta as responses
+    const responses = {
+      200: {
+        description: "Sucesso",
+        content: {
+          "application/json": {
+            schema: { type: "object" }
+          }
+        }
+      },
+      400: { description: "Request inválido - campos obrigatórios ausentes" },
+      404: { description: "API ou cenário não encontrado" }
+    };
+    
+    if (Object.keys(responseExamples).length > 0) {
+      responses[200].content["application/json"].examples = responseExamples;
+    }
+    
+    // Descrição dos cenários
+    let description = `**API:** ${first.tag}\n\n`;
+    description += `**Cenários disponíveis:**\n`;
+    scenarios.forEach(scenario => {
+      const matchStr = scenario.match && Object.keys(scenario.match).length > 0 
+        ? JSON.stringify(scenario.match) 
+        : "fallback (qualquer request)";
+      description += `- **${scenario.nome}**: match ${matchStr} → HTTP ${scenario.responseStatus}\n`;
+    });
+    
     paths[first.path] = paths[first.path] || {};
     paths[first.path][method] = {
       tags: [first.tag],
       summary: first.tag,
-      description: scenarios.map((scenario) => `- ${scenario.nome}: HTTP ${scenario.responseStatus}`).join("\n"),
-      requestBody: ["post", "put", "patch"].includes(method) ? {
-        required: scenarios.some((scenario) => scenario.validateRequest),
-        content: {
-          "application/json": {
-            schema: schemaFromExample(first.requestExample || {}),
-            examples: requestExamples
-          }
-        }
-      } : undefined,
-      responses: {
-        [String(first.responseStatus || 200)]: {
-          description: "Response espelhado conforme cenario cadastrado.",
-          content: { "application/json": { schema: schemaFromExample(first.responseBody), examples } }
-        },
-        404: { description: "Nenhum cenario correspondeu ao request." }
-      }
+      description: description,
+      requestBody: requestBody,
+      responses: responses
     };
   }
 
@@ -241,7 +320,12 @@ async function buildOpenApiSpec(req) {
       version: "1.0.0",
       description: "Documentacao interativa das APIs simuladas para testes de URA."
     },
-    servers: [{ url: `${req.protocol}://${req.get("host")}`, description: "Servidor atual" }],
+    servers: [
+      { 
+        url: `${req.protocol}://${req.get("host")}`, 
+        description: "Servidor atual" 
+      }
+    ],
     paths
   };
 }

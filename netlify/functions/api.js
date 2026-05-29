@@ -7,12 +7,12 @@ const { randomUUID } = require("crypto");
 const app = express();
 app.use(express.json());
 
-// Caminhos dos arquivos
-const DATA_DIR = path.resolve(__dirname, "../../data");
+// CORREÇÃO: Usar /tmp (diretório temporário no Netlify)
+const DATA_DIR = "/tmp/data";
 const MIRRORS_FILE = path.join(DATA_DIR, "apis.json");
 const MASSAS_FILE = path.join(DATA_DIR, "massas.json");
 
-// Garantir que a pasta existe
+// Criar a pasta se não existir
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
@@ -90,12 +90,12 @@ function writeMassas(massas) {
 
 // ========== ROTAS ==========
 
-// Health check
+// Health
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true, service: "mockflow-ura" });
 });
 
-// Massas CRUD
+// Massas
 app.get("/api/massas", (_req, res) => {
   res.json(readMassas());
 });
@@ -109,11 +109,7 @@ app.get("/api/massas/:id", (req, res) => {
 
 app.post("/api/massas", (req, res) => {
   const massas = readMassas();
-  const newMassa = {
-    id: randomUUID(),
-    ...req.body,
-    criadoEm: new Date().toISOString()
-  };
+  const newMassa = { id: randomUUID(), ...req.body, criadoEm: new Date().toISOString() };
   massas.unshift(newMassa);
   writeMassas(massas);
   res.status(201).json(newMassa);
@@ -136,25 +132,14 @@ app.delete("/api/massas/:id", (req, res) => {
   res.status(204).end();
 });
 
-// APIs Mirrors CRUD
+// APIs Mirrors
 app.get("/api/mirrors", (_req, res) => {
   res.json(readMirrors());
 });
 
-app.get("/api/mirrors/:id", (req, res) => {
-  const mirrors = readMirrors();
-  const mirror = mirrors.find(m => m.id === req.params.id);
-  if (!mirror) return res.status(404).json({ error: "API nao encontrada" });
-  res.json(mirror);
-});
-
 app.post("/api/mirrors", (req, res) => {
   const mirrors = readMirrors();
-  const newMirror = {
-    id: randomUUID(),
-    ...req.body,
-    criadoEm: new Date().toISOString()
-  };
+  const newMirror = { id: randomUUID(), ...req.body, criadoEm: new Date().toISOString() };
   mirrors.unshift(newMirror);
   writeMirrors(mirrors);
   res.status(201).json(newMirror);
@@ -181,42 +166,28 @@ app.delete("/api/mirrors/:id", (req, res) => {
 app.get("/api/ura/consulta", (req, res) => {
   const campo = normalize(req.query.campo || "telefone");
   const valor = normalize(req.query.valor);
-  const onlyActive = normalize(req.query.apenasAtiva || "true") !== "false";
   
   if (!valor) {
-    return res.status(400).json({ 
-      encontrado: false, 
-      codigo: "PARAMETRO_INVALIDO" 
-    });
+    return res.status(400).json({ encontrado: false, codigo: "PARAMETRO_INVALIDO" });
   }
   
   const massas = readMassas();
-  const massa = massas.find(item => {
-    const sameField = normalize(item[campo]) === valor;
-    const isActive = !onlyActive || normalize(item.status) === "ativa";
-    return sameField && isActive;
-  });
+  const massa = massas.find(item => normalize(item[campo]) === valor && normalize(item.status) === "ativa");
   
   if (!massa) {
-    return res.json({ 
-      encontrado: false, 
-      codigo: "MASSA_NAO_ENCONTRADA" 
-    });
+    return res.json({ encontrado: false, codigo: "MASSA_NAO_ENCONTRADA" });
   }
   
   res.json({ encontrado: true, ...massa });
 });
 
-// Mock endpoints (apis espelhadas)
+// Mock endpoints
 app.all("*", (req, res) => {
-  // Pula rotas da API
   if (req.path.startsWith("/api")) {
     return res.status(404).json({ error: "Rota nao encontrada" });
   }
   
   const mirrors = readMirrors();
-  
-  // Procura a API que corresponde
   const mirror = mirrors.find(m => 
     m.active && 
     normalize(m.method) === normalize(req.method) && 
@@ -224,58 +195,17 @@ app.all("*", (req, res) => {
   );
   
   if (!mirror) {
-    return res.status(404).json({ 
-      error: "API espelhada nao encontrada",
-      path: req.path,
-      method: req.method
-    });
+    return res.status(404).json({ error: "API espelhada nao encontrada" });
   }
   
-  // Verifica se tem cenários
-  let responseBody = mirror.responseBody;
-  let responseStatus = mirror.responseStatus || 200;
-  let delayMs = mirror.delayMs || 0;
-  
-  // Se tem cenários, procura o que match
-  if (mirror.scenarios && mirror.scenarios.length > 0) {
-    for (const scenario of mirror.scenarios) {
-      let matches = true;
-      const matchConditions = scenario.match || {};
-      
-      for (const [key, expected] of Object.entries(matchConditions)) {
-        let actual;
-        if (key.startsWith("body.")) {
-          actual = getByPath(req.body || {}, key.replace(/^body\./, ""));
-        } else if (key.startsWith("query.")) {
-          actual = getByPath(req.query || {}, key.replace(/^query\./, ""));
-        } else {
-          actual = getByPath(req.query || {}, key) ?? getByPath(req.body || {}, key);
-        }
-        
-        if (normalize(actual) !== normalize(expected)) {
-          matches = false;
-          break;
-        }
-      }
-      
-      if (matches) {
-        responseBody = scenario.responseBody;
-        responseStatus = scenario.responseStatus || 200;
-        delayMs = scenario.delayMs || 0;
-        break;
-      }
-    }
-  }
-  
-  // Delay
-  if (delayMs > 0) {
+  if (mirror.delayMs) {
     setTimeout(() => {
-      res.status(responseStatus).json(applyTemplate(responseBody, req));
-    }, delayMs);
+      res.status(mirror.responseStatus || 200).json(applyTemplate(mirror.responseBody, req));
+    }, mirror.delayMs);
   } else {
-    res.status(responseStatus).json(applyTemplate(responseBody, req));
+    res.status(mirror.responseStatus || 200).json(applyTemplate(mirror.responseBody, req));
   }
 });
 
-// Exportar para o Netlify
+// Exportar
 exports.handler = serverless(app);

@@ -150,7 +150,47 @@ app.delete("/api/mirrors/:id", (req, res) => {
   res.status(204).end();
 });
 
-// ========== SWAGGER ==========
+// ========== REDOC (SWAGGER MODERNIZADO) ==========
+
+// HTML do Redoc
+const redocHTML = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>MockFlow URA - Documentação da API</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+        .redoc-wrap {
+            height: 100vh;
+        }
+    </style>
+</head>
+<body>
+    <redoc spec-url='/openapi.json' 
+           expand-responses="200,201"
+           expand-single-schema-field="true"
+           hide-download-button="false"
+           hide-hostname="false"
+           native-scrollbars="true"
+           no-auto-auth="false"
+           path-in-middle-panel="true"
+           required-props-first="true"
+           scroll-y-offset="70"
+           show-curl="true"
+           show-request-body="true"
+           show-request-headers="true"
+           show-responses-in-middle-panel="true"
+           theme='{"colors":{"primary":{"main":"#6366f1"}},"typography":{"fontSize":"14px","fontFamily":"-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif"},"sidebar":{"backgroundColor":"#1a1a1f","textColor":"#e4e4e7","activeTextColor":"#6366f1","groupTextColor":"#a1a1aa"}}'>
+    </redoc>
+    <script src="https://cdn.jsdelivr.net/npm/redoc@next/bundles/redoc.standalone.js"></script>
+</body>
+</html>
+`;
 
 function generateSwaggerDoc(req) {
   const mirrors = readMirrors();
@@ -271,6 +311,16 @@ function generateSwaggerDoc(req) {
     paths: paths
   };
 }
+
+// Rota para o Redoc
+app.get("/docs", (req, res) => {
+    res.send(redocHTML);
+});
+
+app.get("/openapi.json", (req, res) => {
+  res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+  res.json(generateSwaggerDoc(req));
+});
 
 // Swagger UI
 app.use("/docs", swaggerUi.serve, swaggerUi.setup(null, {

@@ -89,7 +89,8 @@ function writeMassas(massas) {
 }
 
 // ========== ROTAS ==========
-
+// Servir arquivos estáticos
+app.use(express.static("public"));
 // Health
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true, service: "mockflow-ura" });

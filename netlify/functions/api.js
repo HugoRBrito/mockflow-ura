@@ -37,8 +37,8 @@ function writeRuntimeMirrors(mirrors) {
 
 async function readMirrors() {
   try {
-    const store = getStore("mockflow-ura");
-    const mirrors = await store.get("apis", { type: "json" });
+    const store = getStore({ name: "mockflow-ura", consistency: "strong" });
+    const mirrors = await store.get("apis", { type: "json", consistency: "strong" });
     return Array.isArray(mirrors) ? mirrors : readSeedMirrors();
   } catch {
     return readRuntimeMirrors();
@@ -47,7 +47,7 @@ async function readMirrors() {
 
 async function writeMirrors(mirrors) {
   try {
-    const store = getStore("mockflow-ura");
+    const store = getStore({ name: "mockflow-ura", consistency: "strong" });
     await store.setJSON("apis", mirrors);
   } catch {
     writeRuntimeMirrors(mirrors);

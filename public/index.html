@@ -293,7 +293,7 @@
         </div>
 
         <div id="docs" class="tab-content" style="display: none;">
-            <iframe id="docsFrame" src="/docs" style="width: 100%; height: 80vh; border: none; border-radius: 1rem;"></iframe>
+            <iframe id="docsFrame" src="/swagger.html" style="width: 100%; height: 80vh; border: none; border-radius: 1rem;"></iframe>
         </div>
 
         <div id="ajuda" class="tab-content" style="display: none;">
@@ -431,7 +431,7 @@
 
     function reloadSwagger() {
         const frame = document.getElementById('docsFrame');
-        if (frame) frame.src = `/docs?ts=${Date.now()}`;
+        if (frame) frame.src = `/swagger.html?ts=${Date.now()}`;
     }
 
     function resetApiSaveButton() {

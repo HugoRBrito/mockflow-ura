@@ -3,19 +3,53 @@ const serverless = require("serverless-http");
 const fs = require("fs");
 const path = require("path");
 const swaggerUi = require("swagger-ui-express");
+const { randomUUID } = require("crypto");
 
 const app = express();
 const DATA_FILE = path.join(__dirname, "../../data/apis.json");
+const RUNTIME_FILE = path.join("/tmp", "mockflow-apis.json");
 
 app.use(express.json({ limit: "1mb" }));
 
 function readMirrors() {
   try {
-    const raw = fs.readFileSync(DATA_FILE, "utf8").replace(/^\uFEFF/, "").trim();
+    const file = fs.existsSync(RUNTIME_FILE) ? RUNTIME_FILE : DATA_FILE;
+    const raw = fs.readFileSync(file, "utf8").replace(/^\uFEFF/, "").trim();
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
   }
+}
+
+function writeMirrors(mirrors) {
+  fs.writeFileSync(RUNTIME_FILE, `${JSON.stringify(mirrors, null, 2)}\n`, "utf8");
+}
+
+function toMirror(payload, existing = {}) {
+  const now = new Date().toISOString();
+  const pathValue = String(payload.path || "/").trim();
+
+  return {
+    id: existing.id || randomUUID(),
+    nome: String(payload.nome || "").trim(),
+    method: String(payload.method || "GET").trim().toUpperCase(),
+    path: pathValue.startsWith("/") ? pathValue : `/${pathValue}`,
+    active: payload.active !== false,
+    scenarios: Array.isArray(payload.scenarios) ? payload.scenarios : [],
+    criadoEm: existing.criadoEm || now,
+    atualizadoEm: now
+  };
+}
+
+function validateMirrorPayload(payload) {
+  const errors = [];
+  if (!String(payload.nome || "").trim()) errors.push("Campo obrigatorio: nome");
+  if (!String(payload.path || "").trim()) errors.push("Campo obrigatorio: path");
+  if (!String(payload.method || "").trim()) errors.push("Campo obrigatorio: method");
+  if (payload.scenarios !== undefined && !Array.isArray(payload.scenarios)) {
+    errors.push("Scenarios deve ser um array.");
+  }
+  return errors;
 }
 
 function normalize(value) {
@@ -189,6 +223,51 @@ app.get("/api/health", (_req, res) => {
 
 app.get("/api/mirrors", (_req, res) => {
   res.json(readMirrors());
+});
+
+app.post("/api/mirrors", (req, res) => {
+  const errors = validateMirrorPayload(req.body || {});
+  if (errors.length) {
+    res.status(400).json({ errors });
+    return;
+  }
+
+  const mirrors = readMirrors();
+  const mirror = toMirror(req.body);
+  mirrors.unshift(mirror);
+  writeMirrors(mirrors);
+  res.status(201).json(mirror);
+});
+
+app.put("/api/mirrors/:id", (req, res) => {
+  const errors = validateMirrorPayload(req.body || {});
+  if (errors.length) {
+    res.status(400).json({ errors });
+    return;
+  }
+
+  const mirrors = readMirrors();
+  const index = mirrors.findIndex((item) => item.id === req.params.id);
+  if (index === -1) {
+    res.status(404).json({ error: "API espelhada nao encontrada." });
+    return;
+  }
+
+  mirrors[index] = toMirror(req.body, mirrors[index]);
+  writeMirrors(mirrors);
+  res.json(mirrors[index]);
+});
+
+app.delete("/api/mirrors/:id", (_req, res) => {
+  const mirrors = readMirrors();
+  const nextMirrors = mirrors.filter((item) => item.id !== _req.params.id);
+  if (nextMirrors.length === mirrors.length) {
+    res.status(404).json({ error: "API espelhada nao encontrada." });
+    return;
+  }
+
+  writeMirrors(nextMirrors);
+  res.status(204).end();
 });
 
 app.get("/openapi.json", (req, res) => {

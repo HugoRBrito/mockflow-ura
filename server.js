@@ -25,21 +25,26 @@ function getDb() {
 
 async function dbRun(sql, args = []) {
   const result = await getDb().execute({ sql, args });
-  return { changes: result.rowsAffected };
+  // rowsAffected pode ser undefined em algumas versões do @libsql/client
+  return { changes: result.rowsAffected ?? result.changes ?? 1 };
 }
 
 async function dbGet(sql, args = []) {
   const result = await getDb().execute({ sql, args });
   if (!result.rows.length) return undefined;
-  return rowToObj(result.columns, result.rows[0]);
+  const columns = result.columns.map(c => (typeof c === "object" ? c.name : c));
+  return rowToObj(columns, result.rows[0]);
 }
 
 async function dbAll(sql, args = []) {
   const result = await getDb().execute({ sql, args });
-  return result.rows.map(r => rowToObj(result.columns, r));
+  const columns = result.columns.map(c => (typeof c === "object" ? c.name : c));
+  return result.rows.map(r => rowToObj(columns, r));
 }
 
 function rowToObj(columns, row) {
+  // @libsql/client pode retornar row como array ou como objeto dependendo da versão
+  if (!Array.isArray(row)) return row;
   const obj = {};
   columns.forEach((col, i) => { obj[col] = row[i]; });
   return obj;
@@ -49,25 +54,29 @@ function rowToObj(columns, row) {
 
 let _dbReady = null;
 async function initDatabase() {
+  // Na Vercel serverless cada invocação pode ser nova instância — mas dentro da mesma
+  // invocação o cache evita re-criar as tabelas desnecessariamente
   if (_dbReady) return _dbReady;
   _dbReady = (async () => {
-    await dbRun(`CREATE TABLE IF NOT EXISTS mirrors (
-      id TEXT PRIMARY KEY,
-      payload_json TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    )`);
-    await dbRun(`CREATE TABLE IF NOT EXISTS massas (
-      id TEXT PRIMARY KEY,
-      payload_json TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    )`);
-    await dbRun(`CREATE TABLE IF NOT EXISTS logs (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      payload_json TEXT NOT NULL,
-      created_at TEXT NOT NULL
-    )`);
+    await getDb().executeMultiple(`
+      CREATE TABLE IF NOT EXISTS mirrors (
+        id TEXT PRIMARY KEY,
+        payload_json TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS massas (
+        id TEXT PRIMARY KEY,
+        payload_json TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        payload_json TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+    `);
   })();
   return _dbReady;
 }
@@ -95,8 +104,11 @@ async function writeMirror(mirror) {
 
 async function deleteMirrorById(id) {
   await initDatabase();
-  const result = await dbRun("DELETE FROM mirrors WHERE id = ?", [id]);
-  return result.changes > 0;
+  // Verifica se existe antes de deletar para dar 404 correto
+  const exists = await dbGet("SELECT id FROM mirrors WHERE id = ?", [id]);
+  if (!exists) return false;
+  await dbRun("DELETE FROM mirrors WHERE id = ?", [id]);
+  return true;
 }
 
 // ─── MASSAS ───────────────────────────────────────────────────────────────────
@@ -122,8 +134,10 @@ async function writeMassa(massa) {
 
 async function deleteMassaById(id) {
   await initDatabase();
-  const result = await dbRun("DELETE FROM massas WHERE id = ?", [id]);
-  return result.changes > 0;
+  const exists = await dbGet("SELECT id FROM massas WHERE id = ?", [id]);
+  if (!exists) return false;
+  await dbRun("DELETE FROM massas WHERE id = ?", [id]);
+  return true;
 }
 
 // ─── LOGS ─────────────────────────────────────────────────────────────────────
@@ -640,8 +654,8 @@ app.all("*", requireUraKey, async (req, res, next) => {
 });
 
 app.use((error, _req, res, _next) => {
-  console.error(error);
-  res.status(500).json({ error: "Erro interno no servidor." });
+  console.error("[MockFlow Error]", error?.message || error);
+  res.status(500).json({ error: "Erro interno no servidor.", detalhe: error?.message });
 });
 
 // ─── EXPORT para Vercel (sem app.listen) ──────────────────────────────────────

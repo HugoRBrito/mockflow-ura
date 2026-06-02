@@ -1,666 +1,299 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MockFlow URA - Simulador para NICE CXone</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
-            background: #0f0f12;
-            color: #e4e4e7;
-        }
-        .navbar {
-            background: #1a1a1f;
-            border-bottom: 1px solid #2e2e35;
-            padding: 1rem 2rem;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
-        .navbar-content {
-            max-width: 1400px;
-            margin: 0 auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 1rem;
-        }
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .logo-icon {
-            width: 38px;
-            height: 38px;
-            background: linear-gradient(135deg, #6366f1, #818cf8);
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .logo-icon span { color: white; font-weight: 800; font-size: 16px; }
-        .logo-text-main { font-weight: 700; font-size: 1.1rem; }
-        .logo-text-main span { color: #6366f1; }
-        .logo-subtitle { font-size: 0.65rem; color: #6366f1; }
-        .nav-tabs { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-        .nav-tab {
-            padding: 0.5rem 1rem;
-            background: transparent;
-            border: none;
-            color: #a1a1aa;
-            cursor: pointer;
-            border-radius: 0.5rem;
-            transition: all 0.2s;
-        }
-        .nav-tab:hover { background: #25252b; color: #e4e4e7; }
-        .nav-tab.active { background: #6366f1; color: white; }
-        .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-        .stat-card {
-            background: #1a1a1f;
-            border: 1px solid #2e2e35;
-            border-radius: 1rem;
-            padding: 1.5rem;
-        }
-        .stat-title { color: #a1a1aa; font-size: 0.875rem; text-transform: uppercase; }
-        .stat-value { font-size: 2rem; font-weight: bold; margin-top: 0.5rem; }
-        .stat-subtitle { font-size: 0.7rem; color: #a1a1aa; margin-top: 0.25rem; }
-        .dashboard-section {
-            background: #1a1a1f;
-            border: 1px solid #2e2e35;
-            border-radius: 1rem;
-            padding: 1.5rem;
-            margin-bottom: 2rem;
-        }
-        .section-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1rem;
-        }
-        .section-header h3 { font-size: 1.1rem; }
-        .btn {
-            padding: 0.5rem 1rem;
-            border: none;
-            border-radius: 0.5rem;
-            cursor: pointer;
-            font-size: 0.875rem;
-            font-weight: 500;
-            transition: all 0.2s;
-        }
-        .btn-primary { background: #6366f1; color: white; }
-        .btn-primary:hover { background: #818cf8; }
-        .btn-save-dirty {
-            background: #f59e0b;
-            color: #111827;
-            border: 1px solid #fbbf24;
-        }
-        .btn-save-dirty:hover {
-            background: #d97706;
-            color: white;
-        }
-        .btn-secondary { background: #25252b; color: #e4e4e7; border: 1px solid #2e2e35; }
-        .btn-danger {
-            background: #dc2626;
-            color: white;
-            border: 1px solid #ef4444;
-        }
-        .btn-danger:hover {
-            background: #b91c1c;
-            border-color: #f87171;
-        }
-        .btn-sm { padding: 0.25rem 0.75rem; font-size: 0.75rem; }
-        .table-container {
-            background: #1a1a1f;
-            border: 1px solid #2e2e35;
-            border-radius: 1rem;
-            overflow-x: auto;
-        }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 1rem; text-align: left; border-bottom: 1px solid #2e2e35; }
-        th { background: #25252b; color: #a1a1aa; }
-        tr:hover { background: #25252b; }
-        .badge {
-            display: inline-block;
-            padding: 0.25rem 0.5rem;
-            border-radius: 0.25rem;
-            font-size: 0.75rem;
-            font-weight: 500;
-        }
-        .badge-active { background: #10b981; color: white; }
-        .badge-inactive { background: #ef4444; color: white; }
-        .tips-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1rem;
-        }
-        .tip-card {
-            background: #25252b;
-            border: 1px solid #2e2e35;
-            border-radius: 0.75rem;
-            padding: 1rem;
-        }
-        .tip-icon { font-size: 1.5rem; margin-bottom: 0.5rem; }
-        .tip-title { font-weight: 600; margin-bottom: 0.25rem; color: #6366f1; }
-        .tip-text { font-size: 0.75rem; color: #a1a1aa; }
-        .api-tester {
-            background: #1a1a1f;
-            border: 1px solid #2e2e35;
-            border-radius: 1rem;
-            padding: 1.5rem;
-        }
-        .request-response {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
-            margin-top: 1rem;
-        }
-        .json-viewer {
-            background: #25252b;
-            border: 1px solid #2e2e35;
-            border-radius: 0.5rem;
-            padding: 1rem;
-            font-family: monospace;
-            font-size: 0.75rem;
-            overflow-x: auto;
-        }
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.8);
-            z-index: 1000;
-            align-items: center;
-            justify-content: center;
-        }
-        .modal.active { display: flex; }
-        .modal-content {
-            background: #1a1a1f;
-            border: 1px solid #2e2e35;
-            border-radius: 1rem;
-            max-width: 900px;
-            width: 90%;
-            max-height: 90vh;
-            overflow-y: auto;
-        }
-        .modal-header { padding: 1rem; border-bottom: 1px solid #2e2e35; display: flex; justify-content: space-between; }
-        .modal-body { padding: 1rem; }
-        .modal-footer { padding: 1rem; border-top: 1px solid #2e2e35; display: flex; justify-content: flex-end; gap: 0.5rem; }
-        .form-group { margin-bottom: 1rem; }
-        label { display: block; margin-bottom: 0.5rem; color: #a1a1aa; font-size: 0.875rem; }
-        input, select, textarea {
-            width: 100%;
-            padding: 0.5rem;
-            background: #25252b;
-            border: 1px solid #2e2e35;
-            border-radius: 0.5rem;
-            color: #e4e4e7;
-        }
-        textarea { font-family: monospace; }
-        hr { border-color: #2e2e35; margin: 1rem 0; }
-        @media (max-width: 768px) {
-            .navbar-content { flex-direction: column; }
-            .request-response { grid-template-columns: 1fr; }
-            .container { padding: 1rem; }
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MockFlow URA - Plataforma de Testes Internos</title>
+  <style>
+    :root {
+      --bg-main: #0b0b0e;
+      --bg-card: #18181c;
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --text-main: #f4f4f5;
+      --text-muted: #a1a1aa;
+      --border: #2e2e35;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow-x: hidden;
+    }
+
+    /* Navbar Simples */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.5rem 4rem;
+      border-bottom: 1px solid var(--border);
+      background: #0f0f13;
+    }
+
+    .logo-area {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .logo-badge {
+      background: var(--primary);
+      color: white;
+      padding: 0.5rem;
+      border-radius: 0.5rem;
+      font-weight: bold;
+      font-size: 0.9rem;
+    }
+
+    .logo-text h1 {
+      font-size: 1.2rem;
+      font-weight: 700;
+    }
+
+    .logo-text span {
+      font-size: 0.75rem;
+      color: var(--primary);
+      display: block;
+      margin-top: -2px;
+    }
+
+    .tag-internal {
+      background: #27272a;
+      color: #d4d4d8;
+      padding: 0.35rem 0.75rem;
+      border-radius: 2rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      border: 1px solid #3f3f46;
+    }
+
+    /* Hero Section (Principal) */
+    .hero-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 4rem 2rem;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      align-items: center;
+      gap: 4rem;
+      flex-grow: 1;
+    }
+
+    .hero-content h2 {
+      font-size: 2.8rem;
+      line-height: 1.2;
+      margin-bottom: 1rem;
+      font-weight: 800;
+    }
+
+    .hero-content h2 span {
+      color: var(--primary);
+    }
+
+    .hero-content p {
+      color: var(--text-muted);
+      font-size: 1.1rem;
+      line-height: 1.6;
+      margin-bottom: 2.5rem;
+    }
+
+    /* Ações / Botões */
+    .cta-group {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+      padding: 1rem 2rem;
+      border-radius: 0.5rem;
+      font-weight: 600;
+      text-decoration: none;
+      font-size: 1rem;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.3);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-hover);
+      transform: translateY(-2px);
+    }
+
+    .btn-secondary {
+      color: var(--text-main);
+      padding: 1rem 1.5rem;
+      border-radius: 0.5rem;
+      font-weight: 500;
+      text-decoration: none;
+      font-size: 0.95rem;
+      border: 1px solid var(--border);
+      transition: background 0.2s ease;
+    }
+
+    .btn-secondary:hover {
+      background: #1f1f24;
+    }
+
+    /* Visualização da Interface (Lado Direito) */
+    .hero-visual {
+      position: relative;
+    }
+
+    .mockup-window {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+      overflow: hidden;
+    }
+
+    .mockup-header {
+      background: #121215;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+    .dot-r { background: #ef4444; }
+    .dot-y { background: #f59e0b; }
+    .dot-g { background: #10b981; }
+
+    /* Mini representação das features dentro do mockup */
+    .mockup-body {
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .mockup-line {
+      background: #232329;
+      height: 14px;
+      border-radius: 4px;
+    }
+    .mockup-line.short { width: 40%; }
+    .mockup-line.mid { width: 70%; background: var(--primary); opacity: 0.6; }
+
+    .mockup-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-top: 0.5rem;
+    }
+    .mockup-box {
+      background: #1f1f24;
+      border: 1px dashed #3f3f46;
+      height: 60px;
+      border-radius: 6px;
+    }
+
+    /* Footer / Rodapé */
+    footer {
+      text-align: center;
+      padding: 1.5rem;
+      font-size: 0.8rem;
+      color: #52525b;
+      border-top: 1px solid var(--border);
+      background: #09090b;
+    }
+
+    /* Responsividade Básica */
+    @media (max-width: 900px) {
+      .hero-container {
+        grid-template-columns: 1fr;
+        text-align: center;
+        padding: 2rem 1.5rem;
+      }
+      .cta-group {
+        justify-content: center;
+      }
+      header {
+        padding: 1rem 2rem;
+      }
+    }
+  </style>
 </head>
 <body>
-    <nav class="navbar">
-        <div class="navbar-content">
-            <div class="logo">
-                <div class="logo-icon"><span>MF</span></div>
-                <div class="logo-text">
-                    <div class="logo-text-main">MockFlow <span>URA</span></div>
-                    <div class="logo-subtitle">API Simulator</div>
-                </div>
-            </div>
-            <div class="nav-tabs">
-                <button class="nav-tab active" data-tab="dashboard">📊 Dashboard</button>
-                <button class="nav-tab" data-tab="apis">🔌 APIs Espelhadas</button>
-                <button class="nav-tab" data-tab="tester">🧪 Testador</button>
-                <button class="nav-tab" data-tab="docs">📚 Swagger</button>
-                <button class="nav-tab" data-tab="ajuda">📖 Help</button>
-            </div>
-        </div>
-    </nav>
 
-    <div class="container">
-        <div id="dashboard" class="tab-content">
-            <div class="stats-grid">
-                <div class="stat-card"><div class="stat-title">🔌 Total de APIs</div><div class="stat-value" id="totalApis">-</div><div class="stat-subtitle">APIs configuradas</div></div>
-                <div class="stat-card"><div class="stat-title">✅ APIs Ativas</div><div class="stat-value" id="apisAtivas">-</div><div class="stat-subtitle">Em funcionamento</div></div>
-                <div class="stat-card"><div class="stat-title">🎯 Com Match</div><div class="stat-value" id="apisComMatch">-</div><div class="stat-subtitle">Cenários específicos</div></div>
-                <div class="stat-card"><div class="stat-title">🎭 Total de Cenários</div><div class="stat-value" id="totalCenarios">-</div><div class="stat-subtitle">Fluxos diferentes</div></div>
-            </div>
-            <div class="dashboard-section">
-                <div class="section-header"><h3>📋 Últimas APIs Criadas</h3><button class="btn btn-secondary btn-sm" onclick="loadDashboard()">🔄 Atualizar</button></div>
-                <div class="table-container">
-                    <table id="latestApisTable">
-                        <thead><tr><th>Nome da API</th><th>Método</th><th>Path</th><th>Cenários</th><th>Status</th></tr></thead>
-                        <tbody id="latestApisBody"><tr><td colspan="5" style="text-align:center">Carregando...</td></tr></tbody>
-                    </table>
-                </div>
-            </div>
-            <div class="dashboard-section">
-                <div class="section-header"><h3>💡 Dicas Rápidas</h3></div>
-                <div class="tips-grid">
-                    <div class="tip-card"><div class="tip-icon">🎯</div><div class="tip-title">Match por CPF</div><div class="tip-text">Use {"cpf": "123"} para respostas diferentes por CPF</div></div>
-                    <div class="tip-card"><div class="tip-icon">📝</div><div class="tip-title">Templates</div><div class="tip-text">Use {{body.campo}} para retornar valores dinâmicos</div></div>
-                    <div class="tip-card"><div class="tip-icon">⏱️</div><div class="tip-title">Delay</div><div class="tip-text">Simule latência com delayMs (ex: 1000 = 1s)</div></div>
-                    <div class="tip-card"><div class="tip-icon">🔒</div><div class="tip-title">Validação</div><div class="tip-text">Marque "Validar Request" para exigir campos obrigatórios</div></div>
-                </div>
-            </div>
-        </div>
+  <!-- BARRA SUPERIOR -->
+  <header>
+    <div class="logo-area">
+      <div class="logo-badge">MF</div>
+      <div class="logo-text">
+        <h1>MockFlow URA</h1>
+        <span>API SIMULATOR</span>
+      </div>
+    </div>
+    <div class="tag-internal">🔒 Uso Interno Exclusivo</div>
+  </header>
 
-        <div id="apis" class="tab-content" style="display: none;">
-            <div style="margin-bottom: 1rem;">
-                <button class="btn btn-primary" onclick="openApiModal()">➕ Nova API</button>
-                <input type="text" id="searchApi" placeholder="Buscar..." style="width: 300px; margin-left: 1rem;">
-            </div>
-            <div class="table-container">
-                <table id="apisTable">
-                    <thead><tr><th>Nome</th><th>Método</th><th>Path</th><th>Status</th><th>Ações</th></tr></thead>
-                    <tbody id="apisTableBody"><tr><td colspan="5" style="text-align:center">Carregando...</td></tr></tbody>
-                </table>
-            </div>
-        </div>
-
-        <div id="tester" class="tab-content" style="display: none;">
-            <div class="api-tester">
-                <h3>🔧 Testar API Espelhada</h3>
-                <div class="form-group"><label>URL Completa</label><input type="text" id="testUrl" placeholder="Ex: /clientes?cpf=123"></div>
-                <div class="form-group"><label>Método</label><select id="testMethod"><option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option></select></div>
-                <div class="form-group"><label>Body (JSON)</label><textarea id="testBody" rows="5" placeholder='{"key": "value"}'></textarea></div>
-                <button class="btn btn-primary" onclick="testApi()">Enviar Request</button>
-                <div class="request-response">
-                    <div><h4>📤 Request</h4><div id="testRequest" class="json-viewer"></div></div>
-                    <div><h4>📥 Response</h4><div id="testResponse" class="json-viewer"></div></div>
-                </div>
-            </div>
-        </div>
-
-        <div id="docs" class="tab-content" style="display: none;">
-            <iframe id="docsFrame" src="/swagger.html" style="width: 100%; height: 80vh; border: none; border-radius: 1rem;"></iframe>
-        </div>
-
-        <div id="ajuda" class="tab-content" style="display: none;">
-            <iframe src="/ajuda.html" style="width: 100%; height: 80vh; border: none; border-radius: 1rem;"></iframe>
-        </div>
+  <!-- CONTEÚDO PRINCIPAL (HERO) -->
+  <main class="hero-container">
+    
+    <!-- LADO ESQUERDO: TEXTOS E BOTÃO -->
+    <div class="hero-content">
+      <h2>Simulação Ágil de APIs para <span>Fluxos de URA</span></h2>
+      <p>
+        Ambiente homologado e controlado para desenvolvimento e testes de QA. Force cenários de sucesso, simule payloads dinâmicos e injete latências intencionais (Chaos Engine) sem afetar os serviços de produção da empresa.
+      </p>
+      
+      <div class="cta-group">
+        <!-- Botão Principal Único -->
+        <a href="dashboard.html" class="btn-primary">
+          Acessar Simulador ➔
+        </a>
+      </div>
     </div>
 
-    <div id="apiModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header"><h3 id="apiModalTitle">Nova API</h3><button class="btn btn-secondary" onclick="closeApiModal()">✕</button></div>
-            <div class="modal-body">
-                <input type="hidden" id="apiId">
-                <div class="form-group"><label>Nome da API *</label><input id="apiNome" placeholder="Ex: Regular Agenda"></div>
-                <div class="form-group"><label>Método *</label><select id="apiMethod"><option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option></select></div>
-                <div class="form-group"><label>Path *</label><input id="apiPath" placeholder="/api/endpoint"></div>
-                <div class="form-group"><label>API Ativa</label><select id="apiActive"><option value="true">✅ Sim</option><option value="false">❌ Não</option></select></div>
-                <hr>
-                <label>Cenários da API</label>
-                <small>Cada cenário tem um MATCH e uma RESPOSTA diferente.</small>
-                <div id="scenariosList" style="margin-top: 1rem;"></div>
-                <button type="button" class="btn btn-primary" onclick="addScenario()" style="width: 100%; margin-top: 1rem;">➕ Adicionar Novo Cenário</button>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeApiModal()">Cancelar</button>
-                <button class="btn btn-primary" onclick="saveApiWithScenarios()">💾 Salvar API</button>
-            </div>
+    <!-- LADO DIREITO: ILUSTRAÇÃO/MOCKUP GRÁFICO -->
+    <div class="hero-visual">
+      <div class="mockup-window">
+        <div class="mockup-header">
+          <div class="dot dot-r"></div>
+          <div class="dot dot-y"></div>
+          <div class="dot dot-g"></div>
         </div>
+        <div class="mockup-body">
+          <div class="mockup-line mid"></div>
+          <div class="mockup-line"></div>
+          <div class="mockup-grid">
+            <div class="mockup-box" style="display: flex; align-items: center; justify-content: center; font-size: 0.75rem; color: #6366f1; font-weight: 600;">Match Dinâmico</div>
+            <div class="mockup-box" style="display: flex; align-items: center; justify-content: center; font-size: 0.75rem; color: #fb923c; font-weight: 600;">Chaos Engine</div>
+          </div>
+          <div class="mockup-line short"></div>
+        </div>
+      </div>
     </div>
 
-    <div id="scenarioModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3 id="scenarioModalTitle">Editar Cenário</h3>
-            <button class="btn btn-secondary" onclick="closeScenarioModal()">✕</button>
-        </div>
-        <div class="modal-body">
-            <input type="hidden" id="scenarioIndex">
-            
-            <!-- 1. NOME DO CENÁRIO -->
-            <div class="form-group">
-                <label>📌 Nome do Cenário *</label>
-                <input id="scenarioNome" placeholder="Ex: Cliente VIP, Cliente Bloqueado, Fallback">
-                <small>Identifique seu cenário para facilitar a gestão</small>
-            </div>
+  </main>
 
-            <!-- 2. MATCH -->
-            <div class="form-group">
-                <label>🎯 MATCH (Condição para ativar este cenário)</label>
-                <textarea id="scenarioMatch" rows="3" placeholder='{"cpf": "12345678901"}'></textarea>
-                <small>💡 Dica: Use {} vazio para cenário fallback</small>
-            </div>
+  <!-- RODAPÉ -->
+  <footer>
+    &copy; 2026 MockFlow URA &bull; Plataforma Confidencial de Uso Interno da Empresa. Todos os direitos reservados.
+  </footer>
 
-            <!-- 3. REQUEST ESPERADO -->
-            <div class="form-group">
-                <label>📤 Request Esperado (O que a URA vai enviar)</label>
-                <textarea id="scenarioRequestExample" rows="5" placeholder='{
-  "regularAgendaIn": {
-    "parUF": "SP",
-    "parNomeCidade": "SAO PAULO"
-  }
-}'></textarea>
-                <small>📥 JSON que a URA NICE CXone vai enviar para a API</small>
-            </div>
-
-            <!-- 4. CAMPOS OBRIGATÓRIOS -->
-            <div class="form-group">
-                <label>🔒 Campos Obrigatórios (O que a URA precisa enviar)</label>
-                <textarea id="scenarioRequiredFields" rows="3" placeholder='[
-  "regularAgendaIn.parUF",
-  "regularAgendaIn.parNomeCidade"
-]'></textarea>
-                <small>⚠️ Se a URA não enviar estes campos, a API retorna erro</small>
-            </div>
-
-            <!-- 5. VALIDAR REQUEST -->
-            <div class="form-group">
-                <label>✅ Validar Request</label>
-                <select id="scenarioValidateRequest">
-                    <option value="false">❌ Não - Aceita qualquer request</option>
-                    <option value="true">✓ Sim - Verifica campos obrigatórios</option>
-                </select>
-            </div>
-
-            <!-- 6. STATUS HTTP -->
-            <div class="form-group">
-                <label>📊 Status HTTP</label>
-                <input id="scenarioStatus" type="number" value="200" placeholder="200">
-                <small>200 = Sucesso | 400 = Erro | 404 = Não encontrado | 500 = Erro servidor</small>
-            </div>
-
-            <!-- 7. DELAY -->
-            <div class="form-group">
-                <label>⏱️ Delay (ms) - Tempo de resposta</label>
-                <input id="scenarioDelay" type="number" value="0" placeholder="0">
-                <small>Simular latência. Ex: 1000 = 1 segundo</small>
-            </div>
-
-            <!-- 8. RESPONSE BODY -->
-            <div class="form-group">
-                <label>📥 Response Body (O que a API vai retornar)</label>
-                <textarea id="scenarioResponseBody" rows="6" placeholder='{
-  "codigo": 200,
-  "mensagem": "Agendamento realizado com sucesso"
-}'></textarea>
-                <small>📤 JSON que a URA NICE CXone vai receber como resposta</small>
-            </div>
-        </div>
-        <div class="modal-footer">
-            <button class="btn btn-danger" onclick="deleteScenario()">🗑️ Excluir Cenário</button>
-            <button class="btn btn-secondary" onclick="closeScenarioModal()">Cancelar</button>
-            <button class="btn btn-primary" onclick="saveScenario()">💾 Salvar Cenário</button>
-        </div>
-    </div>
-</div>
-
-    <script>
-    let currentTab = 'dashboard';
-    let apis = [];
-    let currentApiScenarios = [];
-    let hasChanges = false;
-
-    document.querySelectorAll('.nav-tab').forEach(tab => {
-        tab.addEventListener('click', () => {
-            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-            tab.classList.add('active');
-            currentTab = tab.dataset.tab;
-            document.querySelectorAll('.tab-content').forEach(content => content.style.display = 'none');
-            const el = document.getElementById(currentTab);
-            if (el) el.style.display = 'block';
-            if (currentTab === 'apis') loadApis();
-            if (currentTab === 'dashboard') loadDashboard();
-            if (currentTab === 'docs') reloadSwagger();
-        });
-    });
-
-    function reloadSwagger() {
-        const frame = document.getElementById('docsFrame');
-        if (frame) frame.src = `/swagger.html?ts=${Date.now()}`;
-    }
-
-    function resetApiSaveButton() {
-        const saveBtn = document.querySelector('#apiModal .modal-footer .btn-primary, #apiModal .modal-footer .btn-save-dirty');
-        if (!saveBtn) return;
-        saveBtn.classList.remove('btn-save-dirty');
-        saveBtn.classList.add('btn-primary');
-        saveBtn.innerHTML = '💾 Salvar API';
-    }
-
-    async function loadDashboard() {
-        try {
-            const res = await fetch('/api/mirrors');
-            const data = await res.json();
-            document.getElementById('totalApis').textContent = data.length;
-            document.getElementById('apisAtivas').textContent = data.filter(a => a.active).length;
-            document.getElementById('apisComMatch').textContent = data.filter(a => a.match && Object.keys(a.match).length > 0).length;
-            let totalCenarios = 0;
-            data.forEach(api => { totalCenarios += api.scenarios ? api.scenarios.length : 1; });
-            document.getElementById('totalCenarios').textContent = totalCenarios;
-            
-            const tbody = document.getElementById('latestApisBody');
-            if (data.length === 0) { tbody.innerHTML = '<tr><td colspan="5">Nenhuma API cadastrada</td></tr>'; return; }
-            tbody.innerHTML = data.slice(-5).reverse().map(api => `
-                <tr>
-                    <td><strong>${escapeHtml(api.nome)}</strong></td>
-                    <td><span class="badge" style="background:#6366f1">${api.method}</span></td>
-                    <td><code>${escapeHtml(api.path.substring(0, 50))}</code></td>
-                    <td><span class="badge" style="background:#10b981">${api.scenarios ? api.scenarios.length : 1}</span></td>
-                    <td><span class="badge ${api.active ? 'badge-active' : 'badge-inactive'}">${api.active ? 'Ativa' : 'Inativa'}</span></td>
-                </tr>
-            `).join('');
-        } catch(e) { console.error(e); }
-    }
-
-    async function loadApis() {
-        try {
-            const res = await fetch('/api/mirrors');
-            apis = await res.json();
-            const tbody = document.getElementById('apisTableBody');
-            if (apis.length === 0) { tbody.innerHTML = '<tr><td colspan="5">Nenhuma API encontrada</td></tr>'; return; }
-            tbody.innerHTML = apis.map(a => `
-                <tr>
-                    <td>${escapeHtml(a.nome)}</td>
-                    <td><span class="badge" style="background:#6366f1">${a.method}</span></td>
-                    <td><code>${escapeHtml(a.path)}</code></td>
-                    <td><span class="badge ${a.active ? 'badge-active' : 'badge-inactive'}">${a.active ? 'Ativa' : 'Inativa'}</span></td>
-                    <td><button class="btn btn-secondary" onclick="editApi('${a.id}')">✏️</button> <button class="btn btn-danger" onclick="deleteApi('${a.id}')">🗑️</button></td>
-                </tr>
-            `).join('');
-        } catch(e) { console.error(e); }
-    }
-
-    async function deleteApi(id) {
-        if (!confirm('Tem certeza?')) return;
-        await fetch(`/api/mirrors/${id}`, { method: 'DELETE' });
-        loadApis(); loadDashboard();
-    }
-
-    function renderScenariosList() {
-        const container = document.getElementById('scenariosList');
-        if (!container) return;
-        if (currentApiScenarios.length === 0) {
-            container.innerHTML = '<div style="text-align:center; padding:2rem;">Nenhum cenário cadastrado</div>';
-            return;
-        }
-        container.innerHTML = currentApiScenarios.map((s, i) => `
-            <div onclick="openScenarioModal(${i})" style="background:#25252b; padding:0.75rem; margin-bottom:0.5rem; border-radius:0.5rem; cursor:pointer;">
-                <strong>${escapeHtml(s.nome || 'Sem nome')}</strong>
-                <div style="font-size:0.7rem;">Match: ${JSON.stringify(s.match || {})}</div>
-            </div>
-        `).join('');
-    }
-
-function openScenarioModal(index) {
-    const s = currentApiScenarios[index];
-    document.getElementById('scenarioIndex').value = index;
-    document.getElementById('scenarioNome').value = s.nome || '';
-    document.getElementById('scenarioMatch').value = JSON.stringify(s.match || {}, null, 2);
-    document.getElementById('scenarioStatus').value = s.responseStatus || 200;
-    document.getElementById('scenarioDelay').value = s.delayMs || 0;
-    document.getElementById('scenarioResponseBody').value = JSON.stringify(s.responseBody || {}, null, 2);
-    document.getElementById('scenarioRequestExample').value = JSON.stringify(s.requestExample || {}, null, 2);
-    document.getElementById('scenarioRequiredFields').value = JSON.stringify(s.requiredFields || [], null, 2);
-    document.getElementById('scenarioValidateRequest').value = s.validateRequest ? 'true' : 'false';
-    document.getElementById('scenarioModal').classList.add('active');
-}
-
-    function saveScenario() {
-    const index = parseInt(document.getElementById('scenarioIndex').value);
-    let match, responseBody, requestExample, requiredFields;
-    
-    try { match = JSON.parse(document.getElementById('scenarioMatch').value || '{}'); } catch(e) { alert('Match inválido'); return; }
-    try { responseBody = JSON.parse(document.getElementById('scenarioResponseBody').value); } catch(e) { alert('Response inválido'); return; }
-    try { requestExample = JSON.parse(document.getElementById('scenarioRequestExample').value || '{}'); } catch(e) { requestExample = {}; }
-    try { requiredFields = JSON.parse(document.getElementById('scenarioRequiredFields').value || '[]'); } catch(e) { requiredFields = []; }
-    
-    const scenario = {
-        nome: document.getElementById('scenarioNome').value,
-        match: match,
-        responseStatus: parseInt(document.getElementById('scenarioStatus').value),
-        delayMs: parseInt(document.getElementById('scenarioDelay').value),
-        responseBody: responseBody,
-        requestExample: requestExample,
-        requiredFields: requiredFields,
-        validateRequest: document.getElementById('scenarioValidateRequest').value === 'true'
-    };
-    
-    if (index >= 0 && index < currentApiScenarios.length) {
-        currentApiScenarios[index] = scenario;
-    } else {
-        currentApiScenarios.push(scenario);
-    }
-    renderScenariosList();
-    closeScenarioModal();
-    hasChanges = true;
-    
-    const saveBtn = document.querySelector('#apiModal .modal-footer .btn-primary, #apiModal .modal-footer .btn-save-dirty');
-    if (saveBtn) {
-        saveBtn.style.display = 'block';
-        saveBtn.innerHTML = '💾 Salvar Alterações *';
-        saveBtn.classList.remove('btn-primary');
-        saveBtn.classList.add('btn-save-dirty');
-    }
-}
-
-function addScenario() {
-    document.getElementById('scenarioModalTitle').textContent = 'Novo Cenário';
-    document.getElementById('scenarioIndex').value = '-1';
-    document.getElementById('scenarioNome').value = '';
-    document.getElementById('scenarioMatch').value = '{}';
-    document.getElementById('scenarioStatus').value = '200';
-    document.getElementById('scenarioDelay').value = '0';
-    document.getElementById('scenarioResponseBody').value = '{\n  "mensagem": "sucesso"\n}';
-    document.getElementById('scenarioRequestExample').value = '{}';
-    document.getElementById('scenarioRequiredFields').value = '[]';
-    document.getElementById('scenarioValidateRequest').value = 'false';
-    document.getElementById('scenarioModal').classList.add('active');
-}
-
-    function deleteScenario() {
-        const index = parseInt(document.getElementById('scenarioIndex').value);
-        if (index >= 0 && confirm('Excluir?')) {
-            currentApiScenarios.splice(index, 1);
-            renderScenariosList();
-            closeScenarioModal();
-            hasChanges = true;
-        }
-    }
-
-    function closeScenarioModal() { document.getElementById('scenarioModal').classList.remove('active'); }
-
-    function openApiModal() {
-        document.getElementById('apiModalTitle').textContent = 'Nova API';
-        document.getElementById('apiId').value = '';
-        document.getElementById('apiNome').value = '';
-        document.getElementById('apiMethod').value = 'POST';
-        document.getElementById('apiPath').value = '';
-        document.getElementById('apiActive').value = 'true';
-        currentApiScenarios = [];
-        hasChanges = false;
-        resetApiSaveButton();
-        renderScenariosList();
-        document.getElementById('apiModal').classList.add('active');
-    }
-
-    async function editApi(id) {
-        const api = apis.find(a => a.id === id);
-        if (!api) return;
-        document.getElementById('apiModalTitle').textContent = 'Editar API';
-        document.getElementById('apiId').value = api.id;
-        document.getElementById('apiNome').value = api.nome;
-        document.getElementById('apiMethod').value = api.method;
-        document.getElementById('apiPath').value = api.path;
-        document.getElementById('apiActive').value = api.active;
-        currentApiScenarios = api.scenarios || [];
-        hasChanges = false;
-        resetApiSaveButton();
-        renderScenariosList();
-        document.getElementById('apiModal').classList.add('active');
-    }
-
-    async function saveApiWithScenarios() {
-        const id = document.getElementById('apiId').value;
-        const nome = document.getElementById('apiNome').value;
-        if (!nome) { alert('Nome é obrigatório'); return; }
-        const data = {
-            nome: nome,
-            method: document.getElementById('apiMethod').value,
-            path: document.getElementById('apiPath').value,
-            active: document.getElementById('apiActive').value === 'true',
-            scenarios: currentApiScenarios
-        };
-        try {
-            const url = id ? `/api/mirrors/${id}` : '/api/mirrors';
-            const method = id ? 'PUT' : 'POST';
-            const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-            if (res.ok) {
-                closeApiModal();
-                loadApis();
-                loadDashboard();
-                reloadSwagger();
-            } else {
-                const err = await res.json();
-                alert('Erro: ' + JSON.stringify(err.errors || err));
-            }
-        } catch(e) { alert('Erro ao salvar: ' + e.message); }
-    }
-
-    function closeApiModal() { document.getElementById('apiModal').classList.remove('active'); }
-
-    async function testApi() {
-        const url = document.getElementById('testUrl').value;
-        const method = document.getElementById('testMethod').value;
-        let body = null;
-        try { body = JSON.parse(document.getElementById('testBody').value); } catch(e) {}
-        const requestUrl = url.startsWith('http') ? url : '/' + url.replace(/^\//, '');
-        document.getElementById('testRequest').textContent = JSON.stringify({ url: requestUrl, method, body }, null, 2);
-        try {
-            const res = await fetch(requestUrl, { method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
-            const data = await res.json();
-            document.getElementById('testResponse').textContent = JSON.stringify({ status: res.status, data }, null, 2);
-        } catch(e) { document.getElementById('testResponse').textContent = JSON.stringify({ error: e.message }, null, 2); }
-    }
-
-    function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m])); }
-
-    document.getElementById('searchApi')?.addEventListener('input', () => loadApis());
-    loadDashboard();
-    </script>
 </body>
 </html>

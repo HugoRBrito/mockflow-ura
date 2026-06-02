@@ -9,14 +9,130 @@
     <div id="swagger-ui"></div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.10.5/swagger-ui-bundle.min.js"></script>
     <script>
-        window.onload = () => {
+        const API_CACHE_KEY = 'mockflow.apis';
+
+        function slugify(value) {
+            return String(value || 'cenario')
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-+|-+$/g, '');
+        }
+
+        function getCachedApis() {
+            try {
+                const cached = JSON.parse(localStorage.getItem(API_CACHE_KEY) || '[]');
+                return Array.isArray(cached) ? cached : [];
+            } catch(e) {
+                return [];
+            }
+        }
+
+        function schemaFromExample(example) {
+            if (Array.isArray(example)) return { type: 'array', items: schemaFromExample(example[0] || {}) };
+            if (example === null) return { nullable: true };
+            if (typeof example === 'object') {
+                const properties = {};
+                Object.entries(example || {}).forEach(([key, value]) => properties[key] = schemaFromExample(value));
+                return { type: 'object', additionalProperties: true, properties };
+            }
+            if (typeof example === 'number') return { type: Number.isInteger(example) ? 'integer' : 'number' };
+            if (typeof example === 'boolean') return { type: 'boolean' };
+            return { type: 'string' };
+        }
+
+        function buildSpecFromApis(apis, baseSpec) {
+            const spec = baseSpec && baseSpec.openapi ? baseSpec : {
+                openapi: '3.0.3',
+                info: {
+                    title: 'MockFlow URA',
+                    version: '1.0.0',
+                    description: 'Documentacao interativa das APIs simuladas para testes de URA.'
+                },
+                servers: [{ url: location.origin, description: 'Servidor atual' }],
+                paths: {}
+            };
+
+            spec.paths = spec.paths || {};
+
+            for (const api of apis) {
+                if (!api || !api.path || !api.method || api.active === false) continue;
+
+                const method = String(api.method).toLowerCase();
+                const scenarios = Array.isArray(api.scenarios) && api.scenarios.length
+                    ? api.scenarios
+                    : [{ nome: api.nome, responseStatus: api.responseStatus || 200, responseBody: api.responseBody || {}, requestExample: api.requestExample || {} }];
+
+                const responseExamples = {};
+                const requestExamples = {};
+                for (const scenario of scenarios) {
+                    const key = slugify(scenario.nome || api.nome);
+                    responseExamples[key] = {
+                        summary: scenario.nome || api.nome,
+                        value: scenario.responseBody || {}
+                    };
+                    if (scenario.requestExample && Object.keys(scenario.requestExample).length) {
+                        requestExamples[key] = {
+                            summary: scenario.nome || api.nome,
+                            value: scenario.requestExample
+                        };
+                    }
+                }
+
+                const first = scenarios[0] || {};
+                spec.paths[api.path] = spec.paths[api.path] || {};
+                spec.paths[api.path][method] = {
+                    tags: [api.nome || 'APIs'],
+                    summary: api.nome || api.path,
+                    description: scenarios.map(s => `- ${s.nome || api.nome}: HTTP ${s.responseStatus || 200}`).join('\n'),
+                    requestBody: ['post', 'put', 'patch'].includes(method) ? {
+                        required: scenarios.some(s => s.validateRequest),
+                        content: {
+                            'application/json': {
+                                schema: schemaFromExample(first.requestExample || {}),
+                                examples: requestExamples
+                            }
+                        }
+                    } : undefined,
+                    responses: {
+                        [String(first.responseStatus || 200)]: {
+                            description: 'Response espelhado conforme cenario cadastrado.',
+                            content: {
+                                'application/json': {
+                                    schema: schemaFromExample(first.responseBody || {}),
+                                    examples: responseExamples
+                                }
+                            }
+                        }
+                    }
+                };
+            }
+
+            return spec;
+        }
+
+        async function loadSpec() {
+            let baseSpec = null;
+            try {
+                const response = await fetch('/openapi.json?ts=' + Date.now(), { cache: 'no-store' });
+                if (response.ok) baseSpec = await response.json();
+            } catch(e) {
+                baseSpec = null;
+            }
+
+            return buildSpecFromApis(getCachedApis(), baseSpec);
+        }
+
+        window.onload = async () => {
+            const spec = await loadSpec();
             SwaggerUIBundle({
-                url: "/openapi.json?ts=" + Date.now(),
+                spec,
                 dom_id: '#swagger-ui',
                 presets: [SwaggerUIBundle.presets.apis],
-                layout: "BaseLayout"
+                layout: 'BaseLayout'
             });
-        }
+        };
     </script>
 </body>
 </html>

@@ -5,6 +5,13 @@
     "method": "POST",
     "path": "/AgendaAtendimentoSocorristaIntegrationService/AgendaAtendimentoSocorristaIntegrationServiceRestV1_0/RegularAgenda",
     "active": true,
+    "chaos": {
+      "enabled": false,
+      "rate": 20,
+      "status": 500,
+      "jitter": 0,
+      "body": {}
+    },
     "scenarios": [
       {
         "nome": "teste",
@@ -46,11 +53,13 @@
             "parCodigoProblema": "886"
           }
         },
-        "requiredFields": [],
+        "requiredFields": [
+          "parCodigoEspecialidade"
+        ],
         "validateRequest": true
       }
     ],
     "criadoEm": "2026-05-29T20:56:15.145Z",
-    "atualizadoEm": "2026-05-29T20:56:15.145Z"
+    "atualizadoEm": "2026-05-30T19:28:40.655Z"
   }
 ]

@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MockFlow URA - Plataforma de Testes</title>
+  
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/dracula.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/javascript/javascript.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/display/placeholder.min.js"></script>
+
+<style>
+/* FORÇA O PLACEHOLDER A FICAR CINZA FOSCO SEMI-TRANSPARENTE NO TEMA DRACULA */
+.cm-s-dracula .CodeMirror-placeholder,
+.CodeMirror-placeholder {
+  color: #52525b !important;
+  font-style: italic !important;
+  opacity: 0.55 !important;
+}
+/* Efeito de hover para o botão de sair */
+a[href="index.html"]:hover {
+  background: rgba(239, 68, 68, 0.15) !important;
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.2);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;background:#0f0f12;color:#e4e4e7;min-height:100vh}
+/* NAVBAR */
+.navbar{background:#1a1a1f;border-bottom:1px solid #2e2e35;padding:.75rem 2rem;position:sticky;top:0;z-index:100}
+.navbar-content{max-width:1500px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-icon{width:36px;height:36px;background:linear-gradient(135deg,#6366f1,#818cf8);border-radius:9px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:#fff}
+.logo-text-main{font-weight:700;font-size:1rem}.logo-text-main span{color:#6366f1}
+.logo-subtitle{font-size:.6rem;color:#6366f1;letter-spacing:.05em}
+.nav-tabs{display:flex;gap:.35rem;flex-wrap:wrap}
+.nav-tab{padding:.4rem .9rem;background:transparent;border:none;color:#a1a1aa;cursor:pointer;border-radius:.5rem;font-size:.85rem;transition:all .15s}
+.nav-tab:hover{background:#25252b;color:#e4e4e7}
+.nav-tab.active{background:#6366f1;color:#fff}
+/* LAYOUT */
+.container{max-width:1500px;margin:0 auto;padding:1.5rem}
+/* STATS */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem}
+.stat-card{background:#1a1a1f;border:1px solid #2e2e35;border-radius:.75rem;padding:1.25rem;display:flex;align-items:center;gap:1rem}
+.stat-icon{font-size:1.5rem;min-width:2rem}
+.stat-value{font-size:1.75rem;font-weight:700;line-height:1}
+.stat-label{font-size:.7rem;color:#a1a1aa;margin-top:.2rem;text-transform:uppercase;letter-spacing:.04em}
+/* CARDS */
+.card{background:#1a1a1f;border:1px solid #2e2e35;border-radius:.75rem;padding:1.25rem;margin-bottom:1.25rem}
+.card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem}
+.card-title{font-weight:600;font-size:.95rem}
+/* BUTTONS */
+.btn{padding:.4rem .85rem;border:none;border-radius:.45rem;cursor:pointer;font-size:.8rem;font-weight:600;transition:all .15s;display:inline-flex;align-items:center;gap:.35rem}
+.btn-primary{background:#6366f1;color:#fff}.btn-primary:hover{background:#818cf8}
+.btn-secondary{background:#25252b;color:#e4e4e7;border:1px solid #2e2e35}.btn-secondary:hover{border-color:#6366f1}
+.btn-danger{background:transparent;color:#ef4444;border:1px solid #3f1f1f}.btn-danger:hover{background:#7f1d1d;border-color:#ef4444}
+.btn-success{background:#065f46;color:#6ee7b7;border:1px solid #064e3b}.btn-success:hover{background:#047857}
+.btn-ghost{background:transparent;color:#a1a1aa;border:1px solid transparent}.btn-ghost:hover{background:#25252b;color:#e4e4e7}
+.btn-sm{padding:.2rem .6rem;font-size:.72rem}
+.btn-chaos{background:#7c2d12;color:#fb923c;border:1px solid #9a3412}.btn-chaos:hover{background:#9a3412}
+.btn-chaos.active{background:#ea580c;color:#fff;border-color:#f97316}
+/* TABLE */
+.table-wrap{overflow-x:auto;border-radius:.6rem;border:1px solid #2e2e35;margin-top:1rem}
+table{width:100%;border-collapse:collapse}
+th{background:#25252b;color:#71717a;font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;padding:.75rem 1rem;text-align:left}
+td{padding:.75rem 1rem;border-bottom:1px solid #2e2e35;font-size:.85rem}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#1e1e24}
+/* BADGES */
+.badge{display:inline-flex;align-items:center;padding:.15rem .5rem;border-radius:.25rem;font-size:.7rem;font-weight:700;line-height:1.4}
+.badge-get{background:#064e3b;color:#6ee7b7}
+.badge-post{background:#312e81;color:#a5b4fc}
+.badge-put{background:#451a03;color:#fbbf24}
+.badge-delete{background:#450a0a;color:#fca5a5}
+.badge-patch{background:#422006;color:#fdba74}
+.badge-2xx{background:#064e3b;color:#6ee7b7}
+.badge-4xx{background:#451a03;color:#fbbf24}
+.badge-5xx{background:#450a0a;color:#fca5a5}
+.badge-on{background:#065f46;color:#6ee7b7}
+.badge-off{background:#3f1f1f;color:#f87171}
+.badge-chaos{background:#7c2d12;color:#fb923c}
+/* TOGGLE SWITCH */
+.toggle{position:relative;display:inline-block;width:40px;height:22px;cursor:pointer}
+.toggle input{opacity:0;width:0;height:0}
+.toggle-slider{position:absolute;inset:0;background:#374151;border-radius:22px;transition:.2s}
+.toggle-slider:before{content:'';position:absolute;width:16px;height:16px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.2s}
+input:checked + .toggle-slider{background:#6366f1}
+input:checked + .toggle-slider:before{transform:translateX(18px)}
+/* FORM */
+.form-group{margin-bottom:.9rem}
+label{display:block;margin-bottom:.35rem;color:#a1a1aa;font-size:.78rem;font-weight:600}
+input,select,textarea{width:100%;padding:.5rem .75rem;background:#25252b;border:1px solid #2e2e35;border-radius:.45rem;color:#e4e4e7;font-size:.85rem;font-family:inherit}
+input:focus,select:focus,textarea:focus{outline:none;border-color:#6366f1}
+textarea{font-family:'Consolas','Menlo',monospace;resize:vertical}
+.form-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+.form-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem}
+small{font-size:.7rem;color:#6b7280;margin-top:.25rem;display:block}
+/* MODAL */
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:200;align-items:center;justify-content:center}
+.modal.active{display:flex}
+.modal-box{background:#1a1a1f;border:1px solid #2e2e35;border-radius:.9rem;width:90%;max-width:800px;max-height:92vh;overflow-y:auto;display:flex;flex-direction:column}
+.modal-head{padding:1rem 1.25rem;border-bottom:1px solid #2e2e35;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:#1a1a1f;z-index:2}
+.modal-head h3{font-size:.95rem}
+.modal-body{padding:1.25rem;flex:1}
+.modal-foot{padding:.85rem 1.25rem;border-top:1px solid #2e2e35;display:flex;justify-content:flex-end;gap:.5rem;background:#1a1a1f;position:sticky;bottom:0}
+/* SCENARIO CARD */
+.scenario-card{background:#25252b;border:1px solid #2e2e35;border-radius:.6rem;padding:.85rem;margin-bottom:.6rem;cursor:pointer;transition:border-color .15s;display:flex;align-items:flex-start;justify-content:space-between;gap:.75rem}
+.scenario-card:hover{border-color:#6366f1}
+.scenario-info{flex:1;min-width:0}
+.scenario-nome{font-weight:600;font-size:.85rem;margin-bottom:.3rem}
+.scenario-meta{font-size:.7rem;color:#6b7280;display:flex;gap:.75rem;flex-wrap:wrap}
+/* LOGS */
+.logs-panel{height:420px;display:flex;flex-direction:column}
+.logs-list{flex:1;overflow-y:auto;font-size:.75rem;font-family:'Consolas','Menlo',monospace}
+.log-row{display:grid;grid-template-columns:90px 55px 55px 60px 1fr 80px;gap:.5rem;padding:.4rem .75rem;border-bottom:1px solid #1a1a1f;align-items:center}
+.log-row:hover{background:#25252b}
+.log-time{color:#6b7280}
+.log-path{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#a1a1aa}
+.log-ms{color:#6b7280;text-align:right}
+.log-chaos-icon{color:#fb923c}
+.logs-toolbar{display:flex;align-items:center;gap:.5rem;padding:.6rem .75rem;border-bottom:1px solid #2e2e35;background:#25252b;border-radius:.6rem .6rem 0 0}
+.live-dot{width:8px;height:8px;background:#10b981;border-radius:50%;animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.live-dot.paused{background:#6b7280;animation:none}
+/* CHAOS PANEL */
+.chaos-box{background:#1c0f07;border:1px solid #7c2d12;border-radius:.6rem;padding:1rem;margin-top:.75rem}
+.chaos-title{color:#fb923c;font-weight:600;font-size:.8rem;margin-bottom:.75rem;display:flex;align-items:center;gap:.5rem}
+/* TIPS */
+.tips-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem}
+.tip-card{background:#25252b;border:1px solid #2e2e35;border-radius:.6rem;padding:.85rem}
+.tip-icon{font-size:1.3rem;margin-bottom:.35rem}
+.tip-title{font-weight:600;font-size:.8rem;color:#818cf8;margin-bottom:.2rem}
+.tip-text{font-size:.7rem;color:#71717a}
+/* JSON VIEWER */
+.json-pre{background:#0f0f12;border:1px solid #2e2e35;border-radius:.5rem;padding:.85rem;font-family:'Consolas','Menlo',monospace;font-size:.75rem;overflow-x:auto;min-height:60px;white-space:pre-wrap;color:#c4b5fd}
+/* SCROLLBAR */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:#1a1a1f}
+::-webkit-scrollbar-thumb{background:#2e2e35;border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:#3f3f46}
+/* RESPONSIVE */
+@media(max-width:900px){
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .tips-grid{grid-template-columns:1fr 1fr}
+  .form-grid-2,.form-grid-3{grid-template-columns:1fr}
+  .log-row{grid-template-columns:80px 50px 1fr 60px}
+}
+.tab-content{display:none}.tab-content.active{display:block}
+hr{border:none;border-top:1px solid #2e2e35;margin:.75rem 0}
+code{background:#25252b;padding:.1rem .3rem;border-radius:.25rem;font-family:'Consolas',monospace;font-size:.8rem;color:#c4b5fd}
+
+/* CODEMIRROR OVERRIDES */
+.CodeMirror {
+  height: 160px !important;
+  border-radius: .45rem;
+  border: 1px solid #2e2e35 !important;
+  font-family: 'Consolas', 'Menlo', monospace;
+  font-size: .85rem;
+  margin-top: .25rem;
+}
+#modal-scenario .CodeMirror { height: 180px !important; }
+/* Estilo para a div flutuante de alertas do Toast */
+#toast-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.toast {
+  background: #1e1e24;
+  color: #e4e4e7;
+  padding: 12px 20px;
+  border-radius: 8px;
+  border-left: 4px solid #6366f1;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  font-size: 0.85rem;
+  font-weight: 600;
+  animation: slideIn 0.2s ease-out;
+}
+.toast.error { border-left-color: #ef4444; }
+@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+</style>
+</head>
+<body>
+
+<div id="toast-container"></div>
+
+<nav class="navbar">
+  <div class="navbar-content">
+    <div class="logo">
+      <div class="logo-icon">MF</div>
+      <div>
+        <div class="logo-text-main">MockFlow <span>URA</span></div>
+        <div class="logo-subtitle">API SIMULATOR</div>
+      </div>
+    </div>
+    <div class="nav-tabs">
+      <button class="nav-tab active" data-tab="dashboard">📊 Dashboard</button>
+      <button class="nav-tab" data-tab="apis">🔌 APIs Espelhadas</button>
+      <button class="nav-tab" data-tab="logs">📡 Logs ao Vivo</button>
+      <button class="nav-tab" data-tab="tester">🧪 Testador</button>
+      <button class="nav-tab" type="button" onclick="openSwagger()">📄 Swagger</button>
+      <button class="nav-tab" data-tab="ajuda">📖 Help</button>
+		<a href="index.html" class="nav-btn" style="color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); background: rgba(239, 68, 68, 0.05); padding: 0.4rem 0.8rem; border-radius: 0.375rem; display: inline-flex; align-items: center; gap: 0.35rem; transition: all 0.2s; text-decoration: none;">
+		  <span>🚪</span> Sair
+		</a>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+
+  <div id="tab-dashboard" class="tab-content active">
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-icon">🔌</div><div><div class="stat-value" id="st-total">—</div><div class="stat-label">Total de APIs</div></div></div>
+      <div class="stat-card"><div class="stat-icon">✅</div><div><div class="stat-value" id="st-ativas">—</div><div class="stat-label">APIs Ativas</div></div></div>
+      <div class="stat-card"><div class="stat-icon">🎭</div><div><div class="stat-value" id="st-cenarios">—</div><div class="stat-label">Cenários</div></div></div>
+      <div class="stat-card"><div class="stat-icon">☠️</div><div><div class="stat-value" id="st-chaos">—</div><div class="stat-label">Com Chaos</div></div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">📋 APIs Recentes</span><button class="btn btn-ghost btn-sm" onclick="loadDashboard()">↺ Atualizar</button></div>
+      <div class="table-wrap"><table><thead><tr><th>Nome</th><th>Método</th><th>Path</th><th>Cenários</th><th>Chaos</th><th>Status</th></tr></thead><tbody id="dash-tbody"><tr><td colspan="6" style="text-align:center;color:#71717a">Carregando...</td></tr></tbody></table></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">💡 Recursos</span></div>
+      <div class="tips-grid">
+        <div class="tip-card"><div class="tip-icon">🎯</div><div class="tip-title">Match Dinâmico</div><div class="tip-text">Use {"cpf":"123"} para respostas diferentes por CPF, contrato ou qualquer campo</div></div>
+        <div class="tip-card"><div class="tip-icon">📝</div><div class="tip-title">Templates</div><div class="tip-text">{{body.campo}}, {{query.param}}, {{uuid}}, {{timestamp}} nos responses</div></div>
+        <div class="tip-card"><div class="tip-icon">☠️</div><div class="tip-title">Chaos Engine</div><div class="tip-text">Injete erros aleatórios e latência extra por API para testar resiliência da URA</div></div>
+        <div class="tip-card"><div class="tip-icon">📡</div><div class="tip-title">Logs ao Vivo</div><div class="tip-text">Veja cada request em tempo real com método, path, status e cenário ativado</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-apis" class="tab-content">
+    <div class="card" style="padding:.85rem 1.25rem">
+      <div style="display:flex; gap:.75rem; align-items:center; flex-wrap:wrap">
+        <button class="btn btn-primary" onclick="openApiModal()">➕ Nova API</button>
+        
+        <button class="btn btn-secondary" onclick="exportApis()" title="Baixar todas as APIs em um arquivo JSON">📤 Exportar Backup</button>
+        <button class="btn btn-secondary" onclick="document.getElementById('importFile').click()" title="Restaurar APIs a partir de um arquivo JSON">📥 Importar Backup</button>
+        <input type="file" id="importFile" accept=".json" style="display:none" onchange="importApis(this)">
+
+        <input type="text" id="searchApi" placeholder="🔍  Buscar por nome, path, método..." style="max-width:340px; flex:1">
+        <span id="apis-count" style="font-size:.78rem; color:#71717a; margin-left:auto"></span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Ativo</th><th>Nome</th><th>Método</th><th>Path</th><th>Cenários</th><th>Chaos</th><th>Ações</th></tr></thead>
+          <tbody id="apis-tbody"><tr><td colspan="8" style="text-align:center;color:#71717a">Carregando...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-logs" class="tab-content">
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="logs-toolbar">
+        <div id="live-dot" class="live-dot"></div>
+        <span style="font-size:.78rem;font-weight:600">Logs em Tempo Real</span>
+        <span id="log-count" style="font-size:.72rem;color:#71717a;margin-left:.5rem"></span>
+        <div style="flex:1"></div>
+        <label style="display:flex;align-items:center;gap:.4rem;margin:0;cursor:pointer">
+          <input type="checkbox" id="log-autoscroll" checked style="width:auto">
+          <span style="font-size:.72rem;color:#a1a1aa">Auto-scroll</span>
+        </label>
+        <button class="btn btn-ghost btn-sm" onclick="clearLogs()">🗑 Limpar</button>
+      </div>
+      <div style="padding:.4rem .75rem;background:#1a1a1f;display:grid;grid-template-columns:90px 55px 55px 60px 1fr 80px;gap:.5rem">
+        <span style="font-size:.65rem;color:#4b5563;font-weight:600">HORA</span>
+        <span style="font-size:.65rem;color:#4b5563;font-weight:600">MÉTODO</span>
+        <span style="font-size:.65rem;color:#4b5563;font-weight:600">STATUS</span>
+        <span style="font-size:.65rem;color:#4b5563;font-weight:600">CHAOS</span>
+        <span style="font-size:.65rem;color:#4b5563;font-weight:600">PATH / CENÁRIO</span>
+        <span style="font-size:.65rem;color:#4b5563;font-weight:600;text-align:right">MS</span>
+      </div>
+      <div class="logs-list" id="logs-list" style="height:480px">
+        <div style="text-align:center;padding:3rem;color:#4b5563;font-size:.8rem">Aguardando requisições...</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-tester" class="tab-content">
+    <div class="card">
+      <div class="card-header"><span class="card-title">🧪 Testar API Espelhada</span></div>
+      <div class="form-grid-3" style="margin-bottom:.75rem">
+        <div class="form-group" style="margin:0"><label>Método</label><select id="t-method"><option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option><option>PATCH</option></select></div>
+        <div class="form-group" style="margin:0;grid-column:2/4"><label>URL / Path</label><input id="t-url" placeholder="Ex: /clientes?cpf=12345678901"></div>
+      </div>
+      <div class="form-group"><label>Body (JSON)</label><textarea id="t-body" rows="4" placeholder='{"campo": "valor"}'></textarea></div>
+      <div class="form-group"><label>Headers adicionais (JSON)</label><textarea id="t-headers" rows="2" placeholder='{"x-api-key": "minha-chave"}'></textarea></div>
+      <button class="btn btn-primary" onclick="testApi()" id="t-btn">▶ Enviar</button>
+      <div class="form-grid-2" style="margin-top:1rem">
+        <div>
+          <div style="font-size:.75rem;color:#71717a;margin-bottom:.4rem">📤 REQUEST</div>
+          <div class="json-pre" id="t-request">—</div>
+        </div>
+        <div>
+          <div id="t-status-line" style="font-size:.75rem;color:#71717a;margin-bottom:.4rem">📥 RESPONSE</div>
+          <div class="json-pre" id="t-response">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-docs" class="tab-content" style="margin:-1.5rem;padding:0">
+    <iframe id="redocFrame" src="" style="width:100%;height:calc(100vh - 62px);border:none;display:block"></iframe>
+  </div>
+
+  <div id="tab-ajuda" class="tab-content">
+    <iframe src="/ajuda.html" style="width:100%;height:80vh;border:none;border-radius:.75rem"></iframe>
+  </div>
+</div>
+
+<div id="modal-api" class="modal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3 id="modal-api-title">Nova API</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeApiModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="api-id">
+      <div class="form-grid-3">
+        <div class="form-group"><label>Nome da API *</label><input id="api-nome" placeholder="Ex: Consulta Cliente"></div>
+        <div class="form-group"><label>Método *</label><select id="api-method"><option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option><option>PATCH</option></select></div>
+        <div class="form-group"><label>Ativo</label><select id="api-active"><option value="true">✅ Sim</option><option value="false">❌ Não</option></select></div>
+      </div>
+      <div class="form-group"><label>Path *</label><input id="api-path" placeholder="/api/endpoint ou /caminho/completo/do/cliente"></div>
+
+      <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.5rem">
+        <span style="font-size:.8rem;font-weight:600;color:#fb923c">☠️ Chaos Engine</span>
+        <label class="toggle"><input type="checkbox" id="chaos-enabled" onchange="toggleChaosPanel()"><span class="toggle-slider"></span></label>
+        <span style="font-size:.72rem;color:#6b7280">Injeta falhas aleatórias nesta API</span>
+      </div>
+      
+      <div id="chaos-panel" class="chaos-box" style="display:none">
+        <div class="chaos-title">☠️ Configuração de Chaos</div>
+        <div class="form-grid-3">
+          <div class="form-group"><label>Taxa de Erro (%)</label><input type="number" id="chaos-rate" min="0" max="100" value="20" placeholder="20"><small>% das req. que vão falhar</small></div>
+          <div class="form-group"><label>Status de Erro</label><input type="number" id="chaos-status" value="500" placeholder="500"><small>HTTP status injetado</small></div>
+          <div class="form-group"><label>Jitter (ms)</label><input type="number" id="chaos-jitter" value="0" placeholder="0"><small>Latência aleatória extra</small></div>
+        </div>
+        <div class="form-group">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <label style="margin:0;">Body de Erro (JSON)</label>
+            <button class="btn btn-ghost btn-sm" style="color:#818cf8; padding:0 4px;" onclick="formatCM(cmChaosBody)">✨ Formatar</button>
+          </div>
+          <textarea id="chaos-body" rows="3">{"codigo":"CHAOS_ERROR","mensagem":"Erro simulado pelo MockFlow Chaos Engine."}</textarea>
+        </div>
+      </div>
+
+      <hr>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem">
+        <span style="font-size:.85rem;font-weight:600">Cenários</span>
+        <button class="btn btn-primary btn-sm" onclick="addScenario()">➕ Novo Cenário</button>
+      </div>
+      <small style="margin-bottom:.75rem;display:block">Cada cenário tem um <b>match</b> e uma <b>resposta</b> diferente. O sistema escolhe o mais específico automaticamente.</small>
+      <div id="scenarios-list"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-secondary" onclick="closeApiModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveApi()" id="btn-save-api">💾 Salvar API</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-scenario" class="modal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3 id="modal-scenario-title">Cenário</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeScenarioModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="sc-index">
+      <div class="form-grid-2">
+        <div class="form-group"><label>📌 Nome do Cenário *</label><input id="sc-nome" placeholder="Ex: Cliente VIP, Fallback, Bloqueado"></div>
+        <div class="form-group"><label>📊 Status HTTP</label><input type="number" id="sc-status" value="200"><small>200 OK · 400 Inválido · 404 Não encontrado · 500 Erro</small></div>
+      </div>
+      
+      <div class="form-group">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <label style="margin:0;">🎯 Match (condição de ativação)</label>
+          <button class="btn btn-ghost btn-sm" style="color:#818cf8; padding:0 4px;" onclick="formatCM(window.cmScMatch)">✨ Formatar</button>
+        </div>
+        <textarea id="sc-match" rows="3"></textarea>
+        <small>Use {} para fallback. Use "body.campo" para campos do body</small>
+      </div>
+      
+      <div class="form-group"><label>⏱️ Delay (ms)</label><input type="number" id="sc-delay" value="0"><small>0 = sem delay · 1000 = 1 segundo</small></div>
+	  
+	    <div class="form-group">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <label style="margin:0;">📤 Request Esperado (documentação)</label>
+          <button class="btn btn-ghost btn-sm" style="color:#818cf8; padding:0 4px;" onclick="formatCM(window.cmScReqExample)">✨ Formatar</button>
+        </div>
+        <textarea id="sc-req-example" rows="5" placeholder='{"campo":"valor"}'></textarea>
+        <small>Cole aqui o exemplo de request da documentação do cliente</small>
+      </div>
+      
+      <div class="form-group">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <label style="margin:0;">📥 Response Body</label>
+          <button class="btn btn-ghost btn-sm" style="color:#818cf8; padding:0 4px;" onclick="formatCM(window.cmScBody)">✨ Formatar</button>
+        </div>
+        <textarea id="sc-body" rows="6" placeholder='{"codigo":200,"mensagem":"sucesso"}'></textarea>
+		<small>Cole aqui o response que será retornado pela API</small>
+      </div>
+      
+      <hr>
+   
+      <div class="form-grid-2">
+        <div class="form-group">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <label style="margin:0;">🔒 Campos Obrigatórios</label>
+            <button class="btn btn-ghost btn-sm" style="color:#818cf8; padding:0 4px;" onclick="formatCM(window.cmScRequired)">✨ Formatar</button>
+          </div>
+          <textarea id="sc-required" rows="4" placeholder='["id", "nome"]'></textarea>
+          <small>Lista JSON ex: ["cpf", "protocolo"]</small>
+        </div>
+        <div class="form-group">
+          <label>⚙️ Validar Request?</label>
+          <select id="sc-validate">
+            <option value="false">Não validar</option>
+            <option value="true">Rejeitar com 400 se faltar campo obrigatório</option>
+          </select>
+          <small>Se ativo, rejeita chamadas fora do padrão documentado</small>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-secondary" onclick="closeScenarioModal()">Voltar</button>
+      <button class="btn btn-primary" onclick="saveScenario()">Confirmar Cenário</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// VARIAVEIS E INSTANCIAS GLOBAIS
+let apis = [];
+let currentScenarios = [];
+let cmChaosBody;
+
+// ALERTA VISUAL TOAST
+function showToast(msg, type = 'success') {
+  const container = document.getElementById('toast-container');
+  const div = document.createElement('div');
+  div.className = `toast ${type === 'error' ? 'error' : ''}`;
+  div.textContent = msg;
+  container.appendChild(div);
+  setTimeout(() => div.remove(), 4000);
+}
+
+// INICIALIZADOR PRINCIPAL
+document.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll(".nav-tab").forEach(tab => {
+    tab.addEventListener("click", () => {
+      document.querySelectorAll(".nav-tab").forEach(t => t.classList.remove("active"));
+      document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+      tab.classList.add("active");
+      const target = document.getElementById(`tab-${tab.dataset.tab}`);
+      if(target) target.classList.add("active");
+      
+    });
+  });
+
+  document.getElementById('searchApi').addEventListener('input', (e) => {
+    renderApisList(e.target.value);
+  });
+
+  cmChaosBody = CodeMirror.fromTextArea(document.getElementById('chaos-body'), { mode: "application/json", theme: "dracula", lineNumbers: true });
+
+  loadApis();
+  loadDashboard();
+  initLogStream();
+});
+
+const API_CACHE_KEY = 'mockflow.apis';
+
+function getCachedApis() {
+  try {
+    const cached = JSON.parse(localStorage.getItem(API_CACHE_KEY) || '[]');
+    return Array.isArray(cached) ? cached : [];
+  } catch {
+    return [];
+  }
+}
+
+function setCachedApis(nextApis) {
+  if (Array.isArray(nextApis)) {
+    localStorage.setItem(API_CACHE_KEY, JSON.stringify(nextApis));
+  }
+}
+
+function openSwagger() {
+  window.open(`/swagger.html?ts=${Date.now()}`, '_blank', 'noopener,noreferrer');
+}
+
+function formatCM(editorInstance) {
+  if (!editorInstance) return;
+  try {
+    const raw = editorInstance.getValue().trim();
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    editorInstance.setValue(JSON.stringify(parsed, null, 2));
+    showToast("JSON formatado com sucesso!");
+  } catch (e) {
+    showToast("Não foi possível formatar: O código possui erros de sintaxe.", "error");
+  }
+}
+
+async function loadApis() {
+  try {
+    const cached = getCachedApis();
+    if (cached.length) {
+      apis = cached;
+      renderApisList();
+      document.getElementById('apis-count').textContent = `${apis.length} mapeamentos`;
+    }
+
+    const res = await fetch('/api/mirrors');
+    const data = await res.json();
+    if (Array.isArray(data) && (data.length || !cached.length)) {
+      apis = data;
+      setCachedApis(apis);
+      renderApisList();
+      document.getElementById('apis-count').textContent = `${apis.length} mapeamentos`;
+    }
+  } catch(e) {
+    showToast("Erro ao conectar ao servidor backend", "error");
+  }
+}
+
+async function loadDashboard() {
+  try {
+    const res = await fetch('/api/mirrors');
+    let data = await res.json();
+    if (!Array.isArray(data) || (!data.length && getCachedApis().length)) {
+      data = getCachedApis();
+    } else {
+      setCachedApis(data);
+    }
+    document.getElementById('st-total').textContent = data.length;
+    document.getElementById('st-ativas').textContent = data.filter(x => x.active).length;
+    
+    let tScenarios = 0;
+    let tChaos = 0;
+    data.forEach(x => {
+      tScenarios += (x.scenarios || []).length;
+      if(x.chaos && x.chaos.enabled) tChaos++;
+    });
+    
+    document.getElementById('st-cenarios').textContent = tScenarios;
+    document.getElementById('st-chaos').textContent = tChaos;
+
+    const tbody = document.getElementById('dash-tbody');
+    tbody.innerHTML = data.slice(0, 7).map(x => `
+      <tr>
+        <td><b>${x.nome}</b></td>
+        <td><span class="badge badge-${x.method.toLowerCase()}">${x.method}</span></td>
+        <td><code>${x.path}</code></td>
+			<td>${(x.scenarios || []).length}</td>
+        <td>${x.chaos && x.chaos.enabled ? '⚠️ Ativo' : 'Não'}</td>
+        <td><span class="badge ${x.active ? 'badge-on' : 'badge-off'}">${x.active ? 'Ativo' : 'Inativo'}</span></td>
+      </tr>
+    `).join('') || '<tr><td colspan="6" style="text-align:center;color:#71717a">Nenhuma API mapeada.</td></tr>';
+  } catch {}
+}
+
+function renderApisList(filter = '') {
+  const tbody = document.getElementById('apis-tbody');
+  const term = filter.toLowerCase().trim();
+  
+  const filtered = apis.filter(x => 
+    x.nome.toLowerCase().includes(term) || 
+    x.path.toLowerCase().includes(term) || 
+    x.method.toLowerCase().includes(term)
+  );
+
+  tbody.innerHTML = filtered.map(x => `
+    <tr>
+      <td>
+        <label class="toggle">
+          <input type="checkbox" ${x.active ? 'checked' : ''} onchange="toggleApiActive('${x.id}', this.checked)">
+          <span class="toggle-slider"></span>
+        </label>
+      </td>
+      <td><b>${x.nome}</b></td>
+      <td><span class="badge badge-${x.method.toLowerCase()}">${x.method}</span></td>
+      <td><code>${x.path}</code></td>
+      <td>${(x.scenarios || []).length} un.</td>
+      <td>${x.chaos && x.chaos.enabled ? `<span class="badge badge-chaos">${x.chaos.rate}%</span>` : '<span style="color:#4b5563">—</span>'}</td>
+      <td>
+        <div style="display:flex;gap:.35rem">
+          <button class="btn btn-secondary btn-sm" onclick="editApi('${x.id}')">✏️ Editar</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteApi('${x.id}')">🗑 Deletar</button>
+        </div>
+      </td>
+    </tr>
+  `).join('') || '<tr><td colspan="8" style="text-align:center;color:#71717a">Nenhuma API encontrada.</td></tr>';
+}
+
+function openApiModal() {
+  document.getElementById('api-id').value = '';
+  document.getElementById('api-nome').value = '';
+  document.getElementById('api-method').value = 'GET';
+  document.getElementById('api-path').value = '';
+  document.getElementById('api-active').value = 'true';
+  
+  document.getElementById('chaos-enabled').checked = false;
+  document.getElementById('chaos-rate').value = 20;
+  document.getElementById('chaos-status').value = 500;
+  document.getElementById('chaos-jitter').value = 0;
+  cmChaosBody.setValue('{"codigo":"CHAOS_ERROR","mensagem":"Erro simulado pelo Chaos Engine."}');
+  
+  document.getElementById('chaos-panel').style.display = 'none';
+  document.getElementById('modal-api-title').textContent = "➕ Criar Nova API";
+  
+  currentScenarios = [];
+  renderScenariosList();
+  document.getElementById('modal-api').classList.add('active');
+}
+
+function closeApiModal() {
+  document.getElementById('modal-api').classList.remove('active');
+}
+
+function toggleChaosPanel() {
+  const isChecked = document.getElementById('chaos-enabled').checked;
+  document.getElementById('chaos-panel').style.display = isChecked ? 'block' : 'none';
+  if(isChecked) setTimeout(() => cmChaosBody.refresh(), 50);
+}
+
+async function toggleApiActive(id, active) {
+  const api = apis.find(x => x.id === id);
+  if(!api) return;
+  api.active = active;
+  try {
+    await fetch(`/api/mirrors/${id}`, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(api)
+    });
+    setCachedApis(apis);
+    showToast(`API ${active ? 'ativada' : 'desativada'}!`);
+    loadDashboard();
+  } catch {
+    showToast("Falha ao atualizar status", "error");
+  }
+}
+
+async function saveApi() {
+  const id = document.getElementById('api-id').value;
+  const nome = document.getElementById('api-nome').value.trim();
+  const method = document.getElementById('api-method').value;
+  let path = document.getElementById('api-path').value.trim();
+  const active = document.getElementById('api-active').value === 'true';
+
+  if(!nome || !path) {
+    showToast("Preencha todos os campos obrigatórios!", "error");
+    return;
+  }
+  if(!path.startsWith('/')) path = '/' + path;
+
+  let chaosBodyObj = {};
+  try {
+    chaosBodyObj = JSON.parse(cmChaosBody.getValue().trim() || '{}');
+  } catch {
+    showToast("JSON inválido no Body de Erro do Chaos Engine!", "error");
+    return;
+  }
+
+  const payload = {
+    nome, method, path, active,
+    scenarios: currentScenarios,
+    chaos: {
+      enabled: document.getElementById('chaos-enabled').checked,
+      rate: Number(document.getElementById('chaos-rate').value) || 0,
+      status: Number(document.getElementById('chaos-status').value) || 500,
+      jitter: Number(document.getElementById('chaos-jitter').value) || 0,
+      body: chaosBodyObj
+    }
+  };
+
+  const url = id ? `/api/mirrors/${id}` : '/api/mirrors';
+  const verb = id ? 'PUT' : 'POST';
+
+  try {
+    const r = await fetch(url, {
+      method: verb,
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const responseText = await r.text();
+    const savedApi = responseText ? JSON.parse(responseText) : null;
+
+    if(!r.ok) {
+      const message = savedApi?.errors?.join(', ') || savedApi?.error || savedApi?.mensagem || "Nao foi possivel salvar a API.";
+      showToast(message, "error");
+      return;
+    }
+
+    if(savedApi) {
+      if (id) {
+        apis = apis.map(api => api.id === id ? savedApi : api);
+      } else {
+        apis = [savedApi, ...apis.filter(api => api.id !== savedApi.id)];
+      }
+      setCachedApis(apis);
+      renderApisList();
+      showToast("API configurada com sucesso!");
+      closeApiModal();
+      await loadApis();
+      loadDashboard();
+    }
+  } catch {
+    showToast("Falha técnica ao tentar salvar.", "error");
+  }
+}
+
+async function editApi(id) {
+  const api = apis.find(x => x.id === id);
+  if(!api) return;
+
+  document.getElementById('api-id').value = api.id;
+  document.getElementById('api-nome').value = api.nome;
+  document.getElementById('api-method').value = api.method;
+  document.getElementById('api-path').value = api.path;
+  document.getElementById('api-active').value = String(api.active);
+
+  const hasChaos = !!(api.chaos && api.chaos.enabled);
+  document.getElementById('chaos-enabled').checked = hasChaos;
+  document.getElementById('chaos-rate').value = api.chaos ? api.chaos.rate : 20;
+  document.getElementById('chaos-status').value = api.chaos ? api.chaos.status : 500;
+  document.getElementById('chaos-jitter').value = api.chaos ? api.chaos.jitter : 0;
+  cmChaosBody.setValue(api.chaos && api.chaos.body ? JSON.stringify(api.chaos.body, null, 2) : '{}');
+  
+  document.getElementById('chaos-panel').style.display = hasChaos ? 'block' : 'none';
+  document.getElementById('modal-api-title').textContent = "✏️ Editar Mapeamento de API";
+
+  currentScenarios = api.scenarios || [];
+  renderScenariosList();
+  document.getElementById('modal-api').classList.add('active');
+  setTimeout(() => cmChaosBody.refresh(), 80);
+}
+
+async function deleteApi(id) {
+  if(!confirm("Deseja realmente apagar esta API e todos os cenários vinculados?")) return;
+  try {
+    const r = await fetch(`/api/mirrors/${id}`, { method: 'DELETE' });
+    if (!r.ok && r.status !== 404) {
+      showToast("Nao foi possivel excluir a API no servidor.", "error");
+      return;
+    }
+    apis = apis.filter(api => api.id !== id);
+    setCachedApis(apis);
+    renderApisList();
+    showToast("API removida.");
+    await loadApis();
+    loadDashboard();
+  } catch {
+    showToast("Não foi possível excluir.", "error");
+  }
+}
+
+function renderScenariosList() {
+  const div = document.getElementById('scenarios-list');
+  div.innerHTML = currentScenarios.map((x, idx) => `
+    <div class="scenario-card" onclick="openScenarioModal(${idx})">
+      <div class="scenario-info">
+        <div class="scenario-nome">#${idx+1} · ${x.nome}</div>
+        <div class="scenario-meta">
+          <span>HTTP <b>${x.responseStatus}</b></span>
+          <span>Delay: <b>${x.delayMs || 0}ms</b></span>
+          <span>Match: <code>${JSON.stringify(x.match)}</code></span>
+        </div>
+      </div>
+      <button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); removeScenario(${idx})">✕</button>
+    </div>
+  `).join('') || '<div style="color:#71717a; text-align:center; padding:1rem; font-size:.8s;">Nenhum cenário criado. Crie um cenário padrão (Fallback).</div>';
+}
+
+function addScenario() {
+  openScenarioModal(-1);
+}
+
+function removeScenario(idx) {
+  currentScenarios.splice(idx, 1);
+  renderScenariosList();
+}
+
+function openScenarioModal(idx = -1) {
+  document.getElementById('sc-index').value = idx;
+  
+  // 1. INICIALIZAÇÃO ÚNICA COM TEMPLATE LITERALS PARA QUEBRAS DE LINHA REAIS
+  if (!window.cmScMatch) {
+    window.cmScMatch = CodeMirror.fromTextArea(document.getElementById('sc-match'), {
+      mode: { name: "javascript", json: true },
+      theme: "dracula",
+      lineNumbers: true,
+      tabSize: 2,
+      placeholder: `{
+  "body.regularAgendaIn.parCodigoOrigem": "9"
+}
+
+// 💡 Deixe vazio {} para ser o cenário padrão (Fallback)`
+    });
+  }
+
+  if (!window.cmScBody) {
+    window.cmScBody = CodeMirror.fromTextArea(document.getElementById('sc-body'), {
+      mode: { name: "javascript", json: true },
+      theme: "dracula",
+      lineNumbers: true,
+      tabSize: 2
+    });
+  }
+
+  if (!window.cmScReqExample) {
+    window.cmScReqExample = CodeMirror.fromTextArea(document.getElementById('sc-req-example'), {
+      mode: { name: "javascript", json: true },
+      theme: "dracula",
+      lineNumbers: true,
+      tabSize: 2
+    });
+  }
+
+  if (!window.cmScRequired) {
+    window.cmScRequired = CodeMirror.fromTextArea(document.getElementById('sc-required'), {
+      mode: { name: "javascript", json: true },
+      theme: "dracula",
+      lineNumbers: true,
+      tabSize: 2
+    });
+  }
+
+  // 2. PREENCHIMENTO DOS DADOS NO MODAL
+  if (idx >= 0) {
+    const s = currentScenarios[idx];
+    document.getElementById('sc-nome').value = s.nome;
+    document.getElementById('sc-status').value = s.responseStatus;
+    document.getElementById('sc-delay').value = s.delayMs || 0;
+    document.getElementById('sc-validate').value = String(!!s.validateRequest);
+
+    window.cmScMatch.setValue(JSON.stringify(s.match || {}, null, 2));
+    window.cmScBody.setValue(JSON.stringify(s.responseBody || {}, null, 2));
+    window.cmScReqExample.setValue(JSON.stringify(s.requestExample || {}, null, 2));
+    window.cmScRequired.setValue(JSON.stringify(s.requiredFields || [], null, 2));
+    document.getElementById('modal-scenario-title').textContent = "📝 Alterar Cenário";
+  } else {
+    document.getElementById('sc-nome').value = '';
+    document.getElementById('sc-status').value = '200';
+    document.getElementById('sc-delay').value = '0';
+    document.getElementById('sc-validate').value = 'false';
+
+    window.cmScMatch.setValue(''); // Limpo para o placeholder fluir fosco
+    window.cmScBody.setValue('{\n  \n}');
+    window.cmScReqExample.setValue('{\n  \n}');
+    window.cmScRequired.setValue('[\n  \n]');
+    document.getElementById('modal-scenario-title').textContent = "✨ Novo Cenário";
+  }
+
+  setTimeout(() => {
+    window.cmScMatch.refresh();
+    window.cmScBody.refresh();
+    window.cmScReqExample.refresh();
+    window.cmScRequired.refresh();
+  }, 180);
+
+  document.getElementById('modal-scenario').classList.add('active');
+}
+
+function closeScenarioModal() {
+  document.getElementById('modal-scenario').classList.remove('active');
+}
+
+function saveScenario() {
+  const nome = document.getElementById('sc-nome').value.trim();
+  if (!nome) {
+    showToast('Dê um nome para o cenário antes de salvar!', 'error');
+    return;
+  }
+
+  let match, responseBody, requestExample, requiredFields;
+  
+  // 1. LEITURA E VALIDAÇÃO SINTÁTICA DOS CAMPOS DO CODEMIRROR
+  try {
+    const matchRaw = window.cmScMatch ? window.cmScMatch.getValue().trim() : '{}';
+    match = JSON.parse(matchRaw || '{}');
+  } catch (e) {
+    showToast('JSON inválido no campo: Match (verifique chaves ou vírgulas)', 'error');
+    return;
+  }
+  
+  try {
+    const bodyRaw = window.cmScBody ? window.cmScBody.getValue().trim() : '';
+    if (!bodyRaw || bodyRaw.replace(/\s/g, '') === '{}') {
+      showToast('⚠️ O campo "Response Body" não pode ficar vazio ou ser apenas {}', 'error');
+      return;
+    }
+    responseBody = JSON.parse(bodyRaw);
+  } catch (e) {
+    showToast('JSON inválido no campo: Response Body', 'error');
+    return;
+  }
+  
+  try {
+    const reqRaw = window.cmScReqExample ? window.cmScReqExample.getValue().trim() : '';
+    if (!reqRaw || reqRaw.replace(/\s/g, '') === '{}') {
+      showToast('⚠️ O campo "Request Esperado" não pode ficar vazio ou ser apenas {}', 'error');
+      return;
+    }
+    requestExample = JSON.parse(reqRaw);
+  } catch (e) {
+    showToast('JSON inválido no campo: Request Esperado', 'error');
+    return;
+  }
+  
+  try {
+    const reqFieldsRaw = window.cmScRequired ? window.cmScRequired.getValue().trim() : '[]';
+    requiredFields = JSON.parse(reqFieldsRaw || '[]');
+    if (!Array.isArray(requiredFields)) {
+      showToast('Os campos obrigatórios devem ser uma lista ex: ["id", "nome"]', 'error');
+      return;
+    }
+  } catch (e) {
+    showToast('JSON inválido no campo: Campos Obrigatórios', 'error');
+    return;
+  }
+
+  // 2. VALIDAÇÃO DE FALLBACK DUPLICADO CORRIGIDA (Substituído idx por i interno)
+  const i = parseInt(document.getElementById('sc-index').value);
+  const isMatchVazio = Object.keys(match).length === 0;
+
+  if (isMatchVazio) {
+    const jaExisteFallback = currentScenarios.some((sc, index) => {
+      if (i >= 0 && index === i) return false; // Ignora o próprio cenário em caso de edição
+      return Object.keys(sc.match || {}).length === 0;
+    });
+
+    if (jaExisteFallback) {
+      showToast('❌ Erro: Esta API já possui um cenário Padrão (Fallback). Só é permitido um cenário padrão por API!', 'error');
+      return; // Interrompe o salvamento com sucesso
+    }
+  }
+  
+  // 3. SALVAMENTO DAS INFORMAÇÕES
+  const s = {
+    nome,
+    match,
+    responseStatus: Number(document.getElementById('sc-status').value) || 200,
+    delayMs: Number(document.getElementById('sc-delay').value) || 0,
+    responseBody,
+    requestExample,
+    requiredFields,
+    validateRequest: document.getElementById('sc-validate').value === 'true'
+  };
+  
+  if (i >= 0) {
+    currentScenarios[i] = s;
+  } else {
+    currentScenarios.push(s);
+  }
+  
+  renderScenariosList();
+  closeScenarioModal();
+  showToast("Cenário validado e adicionado com sucesso!");
+}
+
+// STREAM DE LOGS AO VIVO (SSE)
+let logCount = 0;
+function initLogStream() {
+  const list = document.getElementById('logs-list');
+  const src = new EventSource('/api/logs/stream');
+  
+  src.onmessage = (e) => {
+    const log = JSON.parse(e.data);
+    logCount++;
+    document.getElementById('log-count').textContent = `${logCount} requisições processadas`;
+
+    if(logCount === 1) list.innerHTML = '';
+
+    const div = document.createElement('div');
+    div.className = 'log-row';
+    
+    const time = new Date(log.timestamp).toLocaleTimeString();
+    const isChaos = !!log.chaosInjected;
+    const badgeCls = log.status < 300 ? 'badge-2xx' : log.status < 500 ? 'badge-4xx' : 'badge-5xx';
+    
+    div.innerHTML = `
+      <span class="log-time">${time}</span>
+      <span><span class="badge badge-${log.method.toLowerCase()}">${log.method}</span></span>
+      <span><span class="badge ${badgeCls}">${log.status}</span></span>
+      <span style="text-align:center">${isChaos ? '☠️' : '—'}</span>
+      <span class="log-path" title="${log.path}">
+        <code>${log.path}</code> 
+        <span style="color:#6366f1; font-size:.7rem; margin-left:.4rem">[${log.scenarioName || 'Sem Cenário'}]</span>
+      </span>
+      <span class="log-ms">${log.durationMs}ms</span>
+    `;
+
+    list.appendChild(div);
+    
+    if(document.getElementById('log-autoscroll').checked) {
+      list.scrollTop = list.scrollHeight;
+    }
+  };
+}
+
+function clearLogs() {
+  document.getElementById('logs-list').innerHTML = '<div style="text-align:center;padding:3rem;color:#4b5563;font-size:.8rem">Logs limpos. Aguardando novas chamadas...</div>';
+  logCount = 0;
+  document.getElementById('log-count').textContent = '';
+}
+
+async function testApi() {
+  const method = document.getElementById('t-method').value;
+  const url = document.getElementById('t-url').value.trim();
+  let body = null;
+
+  if(!url) { showToast("Preencha o path ou URL de destino", "error"); return; }
+
+  try {
+    const rawBody = document.getElementById('t-body').value.trim();
+    if(rawBody) body = JSON.parse(rawBody);
+  } catch {
+    showToast("JSON do Body do testador está malformado!", "error");
+    return;
+  }
+
+  let headers = {};
+  try {
+    headers = JSON.parse(document.getElementById('t-headers').value || '{}');
+  } catch {
+    showToast("Headers adicionais inválidos no JSON", "error");
+    return;
+  }
+
+  const reqPath = url.startsWith('http') ? url : ('/' + url.replace(/^\/+/, ''));
+  document.getElementById('t-request').textContent = JSON.stringify({ url: reqPath, method, headers, body }, null, 2);
+  document.getElementById('t-btn').textContent = '⏳ Enviando...';
+
+  try {
+    const start = Date.now();
+    const res = await fetch(reqPath, {
+      method,
+      headers: { 'Content-Type': 'application/json', ...headers },
+      body: body ? JSON.stringify(body) : undefined
+    });
+    const ms = Date.now() - start;
+    const data = await res.json().catch(() => null);
+    const statusCls = res.status < 300 ? '#6ee7b7' : res.status < 500 ? '#fbbf24' : '#f87171';
+    
+    document.getElementById('t-status-line').innerHTML = `📥 RESPONSE &nbsp;<span style="color:${statusCls};font-weight:700">${res.status}</span> &nbsp;<span style="color:#6b7280">${ms}ms</span>`;
+    document.getElementById('t-response').textContent = JSON.stringify(data, null, 2);
+  } catch(e) {
+    document.getElementById('t-response').textContent = JSON.stringify({ error: e.message }, null, 2);
+  } finally {
+    document.getElementById('t-btn').textContent = '▶ Enviar';
+  }
+}
+
+function loadRedoc() {
+  const frame = document.getElementById('redocFrame');
+  if(!frame.src || frame.src === window.location.href) {
+    frame.src = '/docs';
+  }
+}
+
+function exportApis() {
+  if (!apis || !apis.length) {
+    showToast("Nenhuma API cadastrada para exportar.", "error");
+    return;
+  }
+  try {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(apis, null, 2));
+    const downloadAnchor = document.createElement('a');
+    const dataAtual = new Date().toISOString().slice(0,10);
+    
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", `mockflow_ura_backup_${dataAtual}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+    showToast("Arquivo de backup gerado com sucesso!");
+  } catch (e) {
+    showToast("Falha ao exportar arquivo: " + e.message, "error");
+  }
+}
+
+function importApis(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    try {
+      const importedData = JSON.parse(e.target.result);
+      const list = Array.isArray(importedData) ? importedData : [importedData];
+      
+      if (list.length === 0 || !list[0].path || !list[0].nome) {
+        throw new Error("O arquivo não possui o layout estrutural do MockFlow.");
+      }
+
+      let importadosComSucesso = 0;
+      showToast(`Processando importação de ${list.length} rotas...`);
+
+      for (const item of list) {
+        const payload = {
+          nome: item.nome,
+          method: item.method || 'GET',
+          path: item.path,
+          active: item.active !== false,
+          chaos: item.chaos || null,
+          scenarios: item.scenarios || []
+        };
+
+        const r = await fetch('/api/mirrors', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (r.ok) importadosComSucesso++;
+      }
+
+      showToast(`Importação concluída! ${importadosComSucesso} APIs adicionadas.`);
+      input.value = '';
+      await loadApis();
+      loadDashboard();
+    } catch (err) {
+      showToast("Erro ao processar arquivo: " + err.message, "error");
+      input.value = '';
+    }
+  };
+  reader.readAsText(file);
+}
+</script>
+</body>
+</html>

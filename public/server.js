@@ -1,157 +1,76 @@
 const express = require("express");
+const fs = require("fs/promises");
 const path = require("path");
 const { randomUUID } = require("crypto");
-const { createClient } = require("@libsql/client");
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
 const API_KEY = process.env.API_KEY || "";
+const DATA_DIR = path.join(__dirname, "data");
+const DATA_FILE = path.join(DATA_DIR, "massas.json");
+const MIRRORS_FILE = path.join(DATA_DIR, "apis.json");
+const LOGS_FILE = path.join(DATA_DIR, "logs.json");
 
-// ─── TURSO CLIENT ─────────────────────────────────────────────────────────────
-// Variáveis de ambiente necessárias na Vercel:
-//   TURSO_DATABASE_URL  → ex: libsql://seu-banco.turso.io
-//   TURSO_AUTH_TOKEN    → token gerado no dashboard do Turso
+// SSE clients for real-time log streaming
+const sseClients = new Set();
 
-let _db = null;
-function getDb() {
-  if (!_db) {
-    _db = createClient({
-      url: process.env.TURSO_DATABASE_URL,
-      authToken: process.env.TURSO_AUTH_TOKEN,
-    });
-  }
-  return _db;
+app.use(express.json({ limit: "1mb" }));
+app.use(express.static(path.join(__dirname, "public")));
+
+// ─── UTILS ───────────────────────────────────────────────────────────────────
+
+function normalize(value) {
+  return String(value || "").trim().toLowerCase();
 }
 
-async function dbRun(sql, args = []) {
-  const result = await getDb().execute({ sql, args });
-  return { changes: result.rowsAffected };
-}
-
-async function dbGet(sql, args = []) {
-  const result = await getDb().execute({ sql, args });
-  if (!result.rows.length) return undefined;
-  return rowToObj(result.columns, result.rows[0]);
-}
-
-async function dbAll(sql, args = []) {
-  const result = await getDb().execute({ sql, args });
-  return result.rows.map(r => rowToObj(result.columns, r));
-}
-
-function rowToObj(columns, row) {
-  const obj = {};
-  columns.forEach((col, i) => { obj[col] = row[i]; });
-  return obj;
-}
-
-// ─── INIT DB ──────────────────────────────────────────────────────────────────
-
-let _dbReady = null;
-async function initDatabase() {
-  if (_dbReady) return _dbReady;
-  _dbReady = (async () => {
-    await dbRun(`CREATE TABLE IF NOT EXISTS mirrors (
-      id TEXT PRIMARY KEY,
-      payload_json TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    )`);
-    await dbRun(`CREATE TABLE IF NOT EXISTS massas (
-      id TEXT PRIMARY KEY,
-      payload_json TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    )`);
-    await dbRun(`CREATE TABLE IF NOT EXISTS logs (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      payload_json TEXT NOT NULL,
-      created_at TEXT NOT NULL
-    )`);
-  })();
-  return _dbReady;
-}
-
-// ─── MIRRORS ──────────────────────────────────────────────────────────────────
-
-async function readMirrors() {
-  await initDatabase();
-  const rows = await dbAll("SELECT payload_json FROM mirrors ORDER BY created_at DESC");
-  return rows.map(r => JSON.parse(r.payload_json));
-}
-
-async function writeMirror(mirror) {
-  await initDatabase();
-  const now = new Date().toISOString();
-  const existing = await dbGet("SELECT id FROM mirrors WHERE id = ?", [mirror.id]);
-  if (existing) {
-    await dbRun("UPDATE mirrors SET payload_json = ?, updated_at = ? WHERE id = ?",
-      [JSON.stringify(mirror), now, mirror.id]);
-  } else {
-    await dbRun("INSERT INTO mirrors (id, payload_json, created_at, updated_at) VALUES (?, ?, ?, ?)",
-      [mirror.id, JSON.stringify(mirror), now, now]);
+async function readJsonFile(file, fallback) {
+  try {
+    const raw = await fs.readFile(file, "utf8");
+    const cleanJson = raw.replace(/^\uFEFF/, "").replace(/^ï»¿/, "").trim();
+    const jsonText = cleanJson.replace(/^[^\[{]+(?=[\[{])/, "");
+    if (!jsonText) return fallback;
+    const parsed = JSON.parse(jsonText);
+    if (raw.charCodeAt(0) === 0xFEFF || raw.startsWith("ï»¿")) {
+      await fs.writeFile(file, JSON.stringify(parsed, null, 2) + "\n", "utf8");
+    }
+    return parsed;
+  } catch {
+    return fallback;
   }
 }
 
-async function deleteMirrorById(id) {
-  await initDatabase();
-  const result = await dbRun("DELETE FROM mirrors WHERE id = ?", [id]);
-  return result.changes > 0;
-}
-
-// ─── MASSAS ───────────────────────────────────────────────────────────────────
-
-async function readMassas() {
-  await initDatabase();
-  const rows = await dbAll("SELECT payload_json FROM massas ORDER BY created_at DESC");
-  return rows.map(r => JSON.parse(r.payload_json));
-}
-
-async function writeMassa(massa) {
-  await initDatabase();
-  const now = new Date().toISOString();
-  const existing = await dbGet("SELECT id FROM massas WHERE id = ?", [massa.id]);
-  if (existing) {
-    await dbRun("UPDATE massas SET payload_json = ?, updated_at = ? WHERE id = ?",
-      [JSON.stringify(massa), now, massa.id]);
-  } else {
-    await dbRun("INSERT INTO massas (id, payload_json, created_at, updated_at) VALUES (?, ?, ?, ?)",
-      [massa.id, JSON.stringify(massa), now, now]);
+async function ensureJsonFile(file, fallback) {
+  await fs.mkdir(DATA_DIR, { recursive: true });
+  try { await fs.access(file); } catch {
+    await fs.writeFile(file, JSON.stringify(fallback, null, 2) + "\n", "utf8");
   }
 }
 
-async function deleteMassaById(id) {
-  await initDatabase();
-  const result = await dbRun("DELETE FROM massas WHERE id = ?", [id]);
-  return result.changes > 0;
-}
+async function readMassas() { await ensureJsonFile(DATA_FILE, []); return readJsonFile(DATA_FILE, []); }
+async function writeMassas(d) { const t = DATA_FILE + ".tmp"; await fs.writeFile(t, JSON.stringify(d, null, 2) + "\n", "utf8"); await fs.rename(t, DATA_FILE); }
+async function readMirrors() { await ensureJsonFile(MIRRORS_FILE, []); return readJsonFile(MIRRORS_FILE, []); }
+async function writeMirrors(d) { const t = MIRRORS_FILE + ".tmp"; await fs.writeFile(t, JSON.stringify(d, null, 2) + "\n", "utf8"); await fs.rename(t, MIRRORS_FILE); }
 
-// ─── LOGS ─────────────────────────────────────────────────────────────────────
+// ─── REQUEST LOG ─────────────────────────────────────────────────────────────
 
 const MAX_LOGS = 200;
-let requestLogs = []; // cache em memória para a sessão atual
+let requestLogs = [];
+
+async function loadLogs() {
+  await ensureJsonFile(LOGS_FILE, []);
+  requestLogs = await readJsonFile(LOGS_FILE, []);
+}
 
 async function appendLog(entry) {
   requestLogs.unshift(entry);
   if (requestLogs.length > MAX_LOGS) requestLogs = requestLogs.slice(0, MAX_LOGS);
   try {
-    await initDatabase();
-    await dbRun("INSERT INTO logs (payload_json, created_at) VALUES (?, ?)",
-      [JSON.stringify(entry), new Date().toISOString()]);
-    // Manter apenas os últimos MAX_LOGS no banco
-    await dbRun(`DELETE FROM logs WHERE id NOT IN (
-      SELECT id FROM logs ORDER BY id DESC LIMIT ${MAX_LOGS}
-    )`);
+    await fs.writeFile(LOGS_FILE, JSON.stringify(requestLogs, null, 2) + "\n", "utf8");
   } catch {}
-}
-
-async function loadLogsFromDb() {
-  try {
-    await initDatabase();
-    const rows = await dbAll(`SELECT payload_json FROM logs ORDER BY id DESC LIMIT ${MAX_LOGS}`);
-    requestLogs = rows.map(r => JSON.parse(r.payload_json));
-  } catch {
-    requestLogs = [];
+  // Push to SSE clients
+  const data = JSON.stringify(entry);
+  for (const client of sseClients) {
+    try { client.write(`data: ${data}\n\n`); } catch { sseClients.delete(client); }
   }
 }
 
@@ -198,7 +117,7 @@ function toMassa(p, existing = {}) {
     observacao: String(p.observacao || "").trim(),
     extra: (p.extra && typeof p.extra === "object") ? p.extra : {},
     criadoEm: existing.criadoEm || now,
-    atualizadoEm: now,
+    atualizadoEm: now
   };
 }
 
@@ -214,7 +133,7 @@ function toMirror(p, existing = {}) {
       chaos: p.chaos || null,
       scenarios: p.scenarios,
       criadoEm: existing.criadoEm || now,
-      atualizadoEm: now,
+      atualizadoEm: now
     };
   }
   return {
@@ -235,15 +154,11 @@ function toMirror(p, existing = {}) {
     requiredFields: p.requiredFields || [],
     requestExample: p.requestExample || {},
     criadoEm: existing.criadoEm || now,
-    atualizadoEm: now,
+    atualizadoEm: now
   };
 }
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
-
-function normalize(value) {
-  return String(value || "").trim().toLowerCase();
-}
 
 function getByPath(source, dottedPath) {
   return String(dottedPath).split(".").filter(Boolean)
@@ -258,6 +173,8 @@ function hasValue(source, dottedPath) {
 function slugify(value) {
   return normalize(value).replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 48);
 }
+
+function normalize2(value) { return String(value || "").trim().toLowerCase(); }
 
 function filterMassas(massas, query) {
   const q = normalize(query.q), cenario = normalize(query.cenario), status = normalize(query.status);
@@ -301,6 +218,7 @@ function applyTemplate(value, req) {
 }
 
 // ─── CHAOS ENGINE ─────────────────────────────────────────────────────────────
+// chaos: { errorRate: 0-100, errorStatus: 500, errorBody: {}, extraDelayMs: 0, jitterMs: 0 }
 
 function applyChaos(chaos) {
   if (!chaos) return null;
@@ -308,7 +226,7 @@ function applyChaos(chaos) {
   if (roll < (chaos.errorRate || 0)) {
     return {
       status: chaos.errorStatus || 500,
-      body: chaos.errorBody || { codigo: "CHAOS_ERROR", mensagem: "Erro injetado pelo MockFlow Chaos Engine." },
+      body: chaos.errorBody || { codigo: "CHAOS_ERROR", mensagem: "Erro injetado pelo MockFlow Chaos Engine." }
     };
   }
   return null;
@@ -363,6 +281,7 @@ async function handleMirrorRequest(req, res, next, requestedPath, slug) {
       return res.status(404).json({ encontrado: false, codigo: "CENARIO_NAO_ENCONTRADO", mensagem: "Nenhum cenário ativo corresponde aos parametros." });
     }
 
+    // Validação de campos obrigatórios
     if (selectedScenario.validateRequest && selectedScenario.requiredFields) {
       const missing = selectedScenario.requiredFields.filter(f => !hasValue(req.body || {}, f));
       if (missing.length) {
@@ -371,6 +290,7 @@ async function handleMirrorRequest(req, res, next, requestedPath, slug) {
       }
     }
 
+    // Chaos engine
     const chaosResult = applyChaos(selectedMirror.chaos);
     await chaosDelay(selectedMirror.chaos);
 
@@ -379,8 +299,10 @@ async function handleMirrorRequest(req, res, next, requestedPath, slug) {
       return res.status(chaosResult.status).json(chaosResult.body);
     }
 
+    // Delay normal
     if (selectedScenario.delayMs) await new Promise(r => setTimeout(r, selectedScenario.delayMs));
 
+    // Headers
     if (selectedScenario.responseHeaders) {
       for (const [k, v] of Object.entries(selectedScenario.responseHeaders)) res.set(k, String(v));
     }
@@ -432,16 +354,11 @@ async function buildOpenApiSpec(req) {
       description: scenarios.map(s => `- ${s.nome}: match ${JSON.stringify(s.match || {})}, HTTP ${s.responseStatus}`).join("\n"),
       parameters: [...new Map(scenarios.flatMap(s => Object.entries(s.match || {}).filter(([k]) => !k.startsWith("body.")).map(([k, v]) => [k.replace(/^query\./, ""), { name: k.replace(/^query\./, ""), in: "query", required: false, schema: { type: "string" }, example: v }])).map(([k, v]) => [k, v])).values()],
       requestBody: ["post", "put", "patch"].includes(method) ? { required: first.validateRequest, content: { "application/json": { schema: schemaFromExample(first.requestExample || {}), examples: Object.fromEntries(scenarios.filter(s => Object.keys(s.requestExample || {}).length).map(s => [slugify(s.nome), { summary: s.nome, value: s.requestExample }])) } } } : undefined,
-      responses: { [String(first.responseStatus || 200)]: { description: "Response espelhado conforme cenario cadastrado.", content: { "application/json": { schema: schemaFromExample(first.responseBody), examples } } }, 404: { description: "Nenhuma API espelhada correspondeu." } },
+      responses: { [String(first.responseStatus || 200)]: { description: "Response espelhado conforme cenario cadastrado.", content: { "application/json": { schema: schemaFromExample(first.responseBody), examples } } }, 404: { description: "Nenhuma API espelhada correspondeu." } }
     };
   }
-  return { openapi: "3.0.3", info: { title: "MockFlow URA", version: "1.0.0", description: "Documentacao interativa das APIs simuladas para testes de URA." }, servers: [{ url: `${req.protocol}://${req.get("host")}`, description: "Servidor atual" }], paths };
+  return { openapi: "3.0.3", info: { title: "MockFlow URA", version: "1.0.0", description: "Documentacao interativa das APIs simuladas para testes de URA." }, servers: [{ url: `${req.protocol}://${req.get("host")}`, description: "Servidor local" }], paths };
 }
-
-// ─── MIDDLEWARES ──────────────────────────────────────────────────────────────
-
-app.use(express.json({ limit: "1mb" }));
-app.use(express.static(path.join(__dirname, "public")));
 
 // ─── ROUTES: SYSTEM ───────────────────────────────────────────────────────────
 
@@ -454,21 +371,19 @@ app.get("/openapi.json", async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// SSE não funciona na Vercel (funções serverless têm timeout).
-// Substituído por polling: retorna os logs mais recentes como JSON.
-app.get("/api/logs/stream", async (_req, res) => {
-  await loadLogsFromDb();
-  res.json(requestLogs);
+// SSE: real-time log stream
+app.get("/api/logs/stream", (req, res) => {
+  res.set({ "Content-Type": "text/event-stream", "Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no" });
+  res.flushHeaders();
+  sseClients.add(res);
+  res.write(`data: ${JSON.stringify({ type: "connected", ts: new Date().toISOString() })}\n\n`);
+  req.on("close", () => sseClients.delete(res));
 });
 
 app.get("/api/logs", (_req, res) => res.json(requestLogs));
-
 app.delete("/api/logs", async (_req, res) => {
   requestLogs = [];
-  try {
-    await initDatabase();
-    await dbRun("DELETE FROM logs");
-  } catch {}
+  try { await fs.writeFile(LOGS_FILE, "[]\n", "utf8"); } catch {}
   res.status(204).end();
 });
 
@@ -482,8 +397,10 @@ app.post("/api/mirrors", async (req, res, next) => {
   try {
     const errors = validateMirror(req.body);
     if (errors.length) return res.status(400).json({ errors });
+    const mirrors = await readMirrors();
     const mirror = toMirror(req.body);
-    await writeMirror(mirror);
+    mirrors.unshift(mirror);
+    await writeMirrors(mirrors);
     res.status(201).json(mirror);
   } catch (e) { next(e); }
 });
@@ -491,33 +408,36 @@ app.post("/api/mirrors", async (req, res, next) => {
 app.put("/api/mirrors/:id", async (req, res, next) => {
   try {
     const mirrors = await readMirrors();
-    const existing = mirrors.find(m => m.id === req.params.id);
-    if (!existing) return res.status(404).json({ error: "Nao encontrado." });
+    const idx = mirrors.findIndex(m => m.id === req.params.id);
+    if (idx === -1) return res.status(404).json({ error: "Nao encontrado." });
     const errors = validateMirror(req.body);
     if (errors.length) return res.status(400).json({ errors });
-    const updated = toMirror(req.body, existing);
-    await writeMirror(updated);
-    res.json(updated);
+    mirrors[idx] = toMirror(req.body, mirrors[idx]);
+    await writeMirrors(mirrors);
+    res.json(mirrors[idx]);
   } catch (e) { next(e); }
 });
 
+// PATCH: toggle ativo/inativo + chaos sem precisar mandar o mirror completo
 app.patch("/api/mirrors/:id", async (req, res, next) => {
   try {
     const mirrors = await readMirrors();
-    const existing = mirrors.find(m => m.id === req.params.id);
-    if (!existing) return res.status(404).json({ error: "Nao encontrado." });
-    if (req.body.active !== undefined) existing.active = req.body.active;
-    if (req.body.chaos !== undefined) existing.chaos = req.body.chaos;
-    existing.atualizadoEm = new Date().toISOString();
-    await writeMirror(existing);
-    res.json(existing);
+    const idx = mirrors.findIndex(m => m.id === req.params.id);
+    if (idx === -1) return res.status(404).json({ error: "Nao encontrado." });
+    if (req.body.active !== undefined) mirrors[idx].active = req.body.active;
+    if (req.body.chaos !== undefined) mirrors[idx].chaos = req.body.chaos;
+    mirrors[idx].atualizadoEm = new Date().toISOString();
+    await writeMirrors(mirrors);
+    res.json(mirrors[idx]);
   } catch (e) { next(e); }
 });
 
 app.delete("/api/mirrors/:id", async (req, res, next) => {
   try {
-    const deleted = await deleteMirrorById(req.params.id);
-    if (!deleted) return res.status(404).json({ error: "Nao encontrado." });
+    const mirrors = await readMirrors();
+    const next2 = mirrors.filter(m => m.id !== req.params.id);
+    if (next2.length === mirrors.length) return res.status(404).json({ error: "Nao encontrado." });
+    await writeMirrors(next2);
     res.status(204).end();
   } catch (e) { next(e); }
 });
@@ -530,8 +450,7 @@ app.get("/api/massas", async (req, res, next) => {
 
 app.get("/api/massas/:id", async (req, res, next) => {
   try {
-    const massas = await readMassas();
-    const m = massas.find(x => x.id === req.params.id);
+    const m = (await readMassas()).find(x => x.id === req.params.id);
     if (!m) return res.status(404).json({ error: "Massa nao encontrada." });
     res.json(m);
   } catch (e) { next(e); }
@@ -541,8 +460,10 @@ app.post("/api/massas", async (req, res, next) => {
   try {
     const errors = validateMassa(req.body);
     if (errors.length) return res.status(400).json({ errors });
+    const massas = await readMassas();
     const massa = toMassa(req.body);
-    await writeMassa(massa);
+    massas.unshift(massa);
+    await writeMassas(massas);
     res.status(201).json(massa);
   } catch (e) { next(e); }
 });
@@ -550,20 +471,22 @@ app.post("/api/massas", async (req, res, next) => {
 app.put("/api/massas/:id", async (req, res, next) => {
   try {
     const massas = await readMassas();
-    const existing = massas.find(m => m.id === req.params.id);
-    if (!existing) return res.status(404).json({ error: "Massa nao encontrada." });
+    const idx = massas.findIndex(m => m.id === req.params.id);
+    if (idx === -1) return res.status(404).json({ error: "Massa nao encontrada." });
     const errors = validateMassa(req.body);
     if (errors.length) return res.status(400).json({ errors });
-    const updated = toMassa(req.body, existing);
-    await writeMassa(updated);
-    res.json(updated);
+    massas[idx] = toMassa(req.body, massas[idx]);
+    await writeMassas(massas);
+    res.json(massas[idx]);
   } catch (e) { next(e); }
 });
 
 app.delete("/api/massas/:id", async (req, res, next) => {
   try {
-    const deleted = await deleteMassaById(req.params.id);
-    if (!deleted) return res.status(404).json({ error: "Massa nao encontrada." });
+    const massas = await readMassas();
+    const next2 = massas.filter(m => m.id !== req.params.id);
+    if (next2.length === massas.length) return res.status(404).json({ error: "Massa nao encontrada." });
+    await writeMassas(next2);
     res.status(204).end();
   } catch (e) { next(e); }
 });
@@ -608,6 +531,11 @@ app.get("/docs", (_req, res) => {
     #loading { display: flex; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif; color: #a1a1aa; gap: 12px; }
     .spinner { width: 22px; height: 22px; border: 3px solid #2e2e35; border-top-color: #6366f1; border-radius: 50%; animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
+    [role="tab"] { background: #25252b !important; color: #e4e4e7 !important; border-color: #2e2e35 !important; }
+    [role="tab"][aria-selected="true"] { background: #6366f1 !important; color: #fff !important; }
+    h5 { color: #a1a1aa !important; }
+    a { color: #818cf8 !important; }
+    code, pre { color: #c4b5fd !important; background: #25252b !important; }
   </style>
 </head>
 <body>
@@ -618,9 +546,12 @@ app.get("/docs", (_req, res) => {
     Redoc.init('/openapi.json', {
       expandResponses: '200', hideDownloadButton: true,
       theme: {
-        colors: { primary: { main: '#818cf8' } },
-        typography: { fontSize: '14px', fontFamily: '-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Arial, sans-serif' },
-        sidebar: { backgroundColor: '#1a1a1f', textColor: '#e4e4e7', activeTextColor: '#818cf8', width: '220px' }
+        colors: { primary: { main: '#818cf8' }, text: { primary: '#e4e4e7', secondary: '#a1a1aa' }, http: { get: '#10b981', post: '#818cf8', put: '#f59e0b', delete: '#ef4444', patch: '#f59e0b' } },
+        schema: { nestedBackground: '#1a1a1f', typeNameColor: '#c4b5fd', requireLabelColor: '#f87171' },
+        typography: { fontSize: '14px', fontFamily: '-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Arial, sans-serif', code: { fontSize: '13px', fontFamily: 'Consolas, Monaco, monospace', backgroundColor: '#25252b', color: '#c4b5fd', wrap: true }, links: { color: '#818cf8' } },
+        sidebar: { backgroundColor: '#1a1a1f', textColor: '#e4e4e7', activeTextColor: '#818cf8', width: '220px' },
+        rightPanel: { backgroundColor: '#1a1a1f', textColor: '#e4e4e7', width: '40%' },
+        codeBlock: { backgroundColor: '#25252b' }
       }
     }, document.getElementById('redoc-container'), () => { document.getElementById('loading').style.display = 'none'; });
   </script>
@@ -644,12 +575,8 @@ app.use((error, _req, res, _next) => {
   res.status(500).json({ error: "Erro interno no servidor." });
 });
 
-// ─── EXPORT para Vercel (sem app.listen) ──────────────────────────────────────
-module.exports = app;
+// ─── BOOT ─────────────────────────────────────────────────────────────────────
 
-// Inicialização local (ignorado na Vercel)
-if (process.env.NODE_ENV !== "production" || process.env.LOCAL_DEV) {
-  initDatabase().then(() => loadLogsFromDb()).then(() => {
-    app.listen(PORT, () => console.log(`MockFlow URA v2.0 em http://localhost:${PORT}`));
-  });
-}
+loadLogs().then(() => {
+  app.listen(PORT, () => console.log(`MockFlow URA v2.0 em http://localhost:${PORT}`));
+});

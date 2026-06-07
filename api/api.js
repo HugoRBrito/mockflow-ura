@@ -10,12 +10,55 @@ app.use(express.json({ limit: "1mb" }));
 
 let inMemoryMirrors = [];
 let inMemoryMassas = [];
+let requestLogs = [];
+const MAX_LOGS = 200;
+const sseClients = new Set();
 
-// Funções de persistência (memória)
 async function readMirrors() { return inMemoryMirrors; }
 async function writeMirrors(mirrors) { inMemoryMirrors = mirrors; return true; }
 async function readMassas() { return inMemoryMassas; }
 async function writeMassas(massas) { inMemoryMassas = massas; return true; }
+
+function appendLog(entry) {
+  const log = {
+    id: entry.id || randomUUID(),
+    timestamp: entry.timestamp || new Date().toISOString(),
+    method: entry.method || "GET",
+    path: entry.path || "/",
+    status: Number(entry.status || 0),
+    durationMs: Number(entry.durationMs || 0),
+    scenarioName: entry.scenarioName || entry.scenario || "Sem Cenário",
+    chaosInjected: !!entry.chaosInjected,
+    error: entry.error || null,
+    mirrorId: entry.mirrorId || null,
+    mirrorNome: entry.mirrorNome || null
+  };
+
+  requestLogs.unshift(log);
+  if (requestLogs.length > MAX_LOGS) requestLogs = requestLogs.slice(0, MAX_LOGS);
+
+  for (const client of sseClients) {
+    try {
+      client.write(`data: ${JSON.stringify(log)}\n\n`);
+    } catch (error) {
+      sseClients.delete(client);
+    }
+  }
+}
+
+function buildLogEntry({ req, status, durationMs, selectedScenario, chaosInjected, error, mirror }) {
+  return {
+    method: req.method,
+    path: req.path,
+    status,
+    durationMs,
+    scenarioName: selectedScenario?.nome || selectedScenario?.name || "Sem Cenário",
+    chaosInjected,
+    error,
+    mirrorId: mirror?.id,
+    mirrorNome: mirror?.nome
+  };
+}
 
 // ========== FUNÇÕES AUXILIARES ==========
 
@@ -169,6 +212,28 @@ app.get("/api/health", (_req, res) => {
   res.json({ ok: true, service: "mockflow-ura" });
 });
 
+app.get("/api/logs/stream", (req, res) => {
+  res.set({
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
+    "X-Accel-Buffering": "no"
+  });
+  res.flushHeaders();
+  sseClients.add(res);
+  res.write(`data: ${JSON.stringify({ connected: true, timestamp: new Date().toISOString() })}\n\n`);
+  req.on("close", () => sseClients.delete(res));
+});
+
+app.get("/api/logs", (_req, res) => {
+  res.json(requestLogs);
+});
+
+app.delete("/api/logs", (_req, res) => {
+  requestLogs = [];
+  res.status(204).end();
+});
+
 // Massas
 app.get("/api/massas", async (req, res) => {
   const massas = await readMassas();
@@ -261,10 +326,13 @@ app.all("*", async (req, res, next) => {
     return next();
   }
   
+  const startTime = Date.now();
   const mirrors = await readMirrors();
   const mirror = mirrors.find(m => m.active && normalize(m.method) === normalize(req.method) && normalize(m.path) === normalize(req.path));
   
   if (!mirror) {
+    const durationMs = Date.now() - startTime;
+    appendLog(buildLogEntry({ req, status: 404, durationMs, selectedScenario: null, chaosInjected: false, error: "API_NAO_ENCONTRADA" }));
     return res.status(404).json({ error: "API espelhada nao encontrada", path: req.path, method: req.method });
   }
   
@@ -290,25 +358,37 @@ app.all("*", async (req, res, next) => {
   }
   
   if (!selectedScenario && scenarios.length > 0) selectedScenario = scenarios[0];
-  if (!selectedScenario) return res.status(404).json({ error: "Nenhum cenário configurado" });
+  if (!selectedScenario) {
+    const durationMs = Date.now() - startTime;
+    appendLog(buildLogEntry({ req, status: 404, durationMs, selectedScenario: null, chaosInjected: false, error: "CENARIO_NAO_ENCONTRADO", mirror }));
+    return res.status(404).json({ error: "Nenhum cenário configurado" });
+  }
   
   if (selectedScenario.validateRequest && selectedScenario.requiredFields) {
     const missing = selectedScenario.requiredFields.filter(field => !hasValue(req.body || {}, field));
     if (missing.length) {
+      const durationMs = Date.now() - startTime;
+      appendLog(buildLogEntry({ req, status: 400, durationMs, selectedScenario, chaosInjected: false, error: "REQUEST_INVALIDO", mirror }));
       return res.status(400).json({ error: "Campos obrigatórios ausentes", missing_fields: missing });
     }
   }
   
   if (sendChaosResponse(mirror, req, res)) {
+    const durationMs = Date.now() - startTime;
+    appendLog(buildLogEntry({ req, status: Number(mirror.chaos?.status) || 500, durationMs, selectedScenario, chaosInjected: true, mirror }));
     return;
   }
   
+  const sendResponse = () => {
+    const status = Number(selectedScenario.responseStatus || 200);
+    res.status(status).json(applyTemplate(selectedScenario.responseBody || {}, req));
+    appendLog(buildLogEntry({ req, status, durationMs: Date.now() - startTime, selectedScenario, chaosInjected: false, mirror }));
+  };
+  
   if (selectedScenario.delayMs) {
-    setTimeout(() => {
-      res.status(selectedScenario.responseStatus || 200).json(applyTemplate(selectedScenario.responseBody || {}, req));
-    }, selectedScenario.delayMs);
+    setTimeout(sendResponse, Number(selectedScenario.delayMs));
   } else {
-    res.status(selectedScenario.responseStatus || 200).json(applyTemplate(selectedScenario.responseBody || {}, req));
+    sendResponse();
   }
 });
 

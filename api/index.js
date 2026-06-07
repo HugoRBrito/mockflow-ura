@@ -32,6 +32,7 @@ async function ensureDb() {
     method TEXT,
     path TEXT,
     active INTEGER,
+    chaos TEXT,
     scenarios TEXT,
     criadoEm TEXT,
     atualizadoEm TEXT
@@ -57,6 +58,7 @@ async function ensureDb() {
     "method TEXT",
     "path TEXT",
     "active INTEGER",
+    "chaos TEXT",
     "scenarios TEXT",
     "criadoEm TEXT",
     "atualizadoEm TEXT",
@@ -143,6 +145,7 @@ async function readMirrors() {
           method: obj.method || "GET",
           path: obj.path || "/",
           active: obj.active === 1 || obj.active === true,
+          chaos: obj.chaos || null,
           scenarios: Array.isArray(obj.scenarios) ? obj.scenarios : JSON.parse(obj.scenarios || "[]"),
           criadoEm: obj.criadoEm || row.criadoEm,
           atualizadoEm: obj.atualizadoEm || row.atualizadoEm
@@ -157,6 +160,7 @@ async function readMirrors() {
       method: row.method,
       path: row.path,
       active: row.active === 1,
+      chaos: row.chaos ? JSON.parse(row.chaos) : null,
       scenarios: JSON.parse(row.scenarios || "[]"),
       criadoEm: row.criadoEm,
       atualizadoEm: row.atualizadoEm
@@ -171,10 +175,10 @@ async function writeMirrors(mirrors) {
     // Tenta inserção no schema novo; em caso de falha, grava em payload_json (schema antigo)
     try {
       await turso.execute({
-        sql: `INSERT INTO mirrors (id, nome, method, path, active, scenarios, criadoEm, atualizadoEm) 
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        sql: `INSERT INTO mirrors (id, nome, method, path, active, chaos, scenarios, criadoEm, atualizadoEm) 
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         args: [mirror.id, mirror.nome, mirror.method, mirror.path, mirror.active ? 1 : 0,
-                JSON.stringify(mirror.scenarios), mirror.criadoEm, mirror.atualizadoEm]
+            JSON.stringify(mirror.chaos || null), JSON.stringify(mirror.scenarios), mirror.criadoEm, mirror.atualizadoEm]
       });
     } catch (err) {
       const now = new Date().toISOString();

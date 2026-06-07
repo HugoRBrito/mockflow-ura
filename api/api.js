@@ -253,9 +253,12 @@ app.get("/api/ura/consulta", async (req, res) => {
 });
 
 // Mock endpoints
-app.all("*", async (req, res) => {
-  if (req.path.startsWith("/api") || req.path.startsWith("/docs") || req.path === "/openapi.json") {
-    return;
+app.all("*", async (req, res, next) => {
+  if (req.path.startsWith("/api")) {
+    return res.status(404).json({ error: "Endpoint nao encontrado" });
+  }
+  if (req.path.startsWith("/docs") || req.path === "/openapi.json") {
+    return next();
   }
   
   const mirrors = await readMirrors();

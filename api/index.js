@@ -1,15 +1,93 @@
+require("dotenv").config();
 const express = require("express");
+const path = require("path");
 const { randomUUID } = require("crypto");
 const { createClient } = require("@libsql/client");
 
 const app = express();
 app.use(express.json({ limit: "1mb" }));
+app.use(express.static(path.join(__dirname, "..", "public")));
+
+const TURSO_DATABASE_URL = process.env.TURSO_DATABASE_URL || process.env.TURSO_DB_URL || "";
+const TURSO_AUTH_TOKEN = process.env.TURSO_AUTH_TOKEN || process.env.TURSO_DB_AUTH_TOKEN || "";
+
+if (!TURSO_DATABASE_URL || !TURSO_AUTH_TOKEN) {
+  throw new Error(
+    "Variáveis Turso ausentes. Configure TURSO_DATABASE_URL/TURSO_AUTH_TOKEN ou TURSO_DB_URL/TURSO_DB_AUTH_TOKEN."
+  );
+}
 
 // ========== CONEXÃO COM TURSO ==========
 const turso = createClient({
-  url: process.env.TURSO_DATABASE_URL,
-  authToken: process.env.TURSO_AUTH_TOKEN,
+  url: TURSO_DATABASE_URL,
+  authToken: TURSO_AUTH_TOKEN,
 });
+
+let dbReady = false;
+async function ensureDb() {
+  if (dbReady) return;
+  await turso.execute(`CREATE TABLE IF NOT EXISTS mirrors (
+    id TEXT PRIMARY KEY,
+    nome TEXT,
+    method TEXT,
+    path TEXT,
+    active INTEGER,
+    scenarios TEXT,
+    criadoEm TEXT,
+    atualizadoEm TEXT
+  )`);
+  await turso.execute(`CREATE TABLE IF NOT EXISTS massas (
+    id TEXT PRIMARY KEY,
+    nome TEXT,
+    cenario TEXT,
+    telefone TEXT,
+    cpf TEXT,
+    contrato TEXT,
+    status TEXT,
+    fila TEXT,
+    observacao TEXT,
+    extra TEXT,
+    criadoEm TEXT,
+    atualizadoEm TEXT
+  )`);
+
+  // Correção de migração para bancos existentes com schema antigo
+  const mirrorColumns = [
+    "nome TEXT",
+    "method TEXT",
+    "path TEXT",
+    "active INTEGER",
+    "scenarios TEXT",
+    "criadoEm TEXT",
+    "atualizadoEm TEXT",
+    "created_at TEXT",
+    "updated_at TEXT"
+  ];
+  for (const column of mirrorColumns) {
+    await turso.execute(`ALTER TABLE mirrors ADD COLUMN ${column}`).catch(() => {});
+  }
+
+  const massaColumns = [
+    "nome TEXT",
+    "cenario TEXT",
+    "telefone TEXT",
+    "cpf TEXT",
+    "contrato TEXT",
+    "status TEXT",
+    "fila TEXT",
+    "observacao TEXT",
+    "extra TEXT",
+    "criadoEm TEXT",
+    "atualizadoEm TEXT",
+    "created_at TEXT",
+    "updated_at TEXT"
+  ];
+  for (const column of massaColumns) {
+    await turso.execute(`ALTER TABLE massas ADD COLUMN ${column}`).catch(() => {});
+  }
+
+  dbReady = true;
+}
 
 // ========== FUNÇÕES AUXILIARES ==========
 
@@ -52,34 +130,86 @@ function applyTemplate(value, req) {
 // ========== CRUD MIRRORS ==========
 
 async function readMirrors() {
+  await ensureDb();
   const result = await turso.execute("SELECT * FROM mirrors ORDER BY criadoEm DESC");
-  return result.rows.map(row => ({
-    id: row.id,
-    nome: row.nome,
-    method: row.method,
-    path: row.path,
-    active: row.active === 1,
-    scenarios: JSON.parse(row.scenarios || "[]"),
-    criadoEm: row.criadoEm,
-    atualizadoEm: row.atualizadoEm
-  }));
+  return result.rows.map(row => {
+    // suporte a schema antigo que armazena o objeto inteiro em `payload_json`
+    if (row.payload_json) {
+      try {
+        const obj = JSON.parse(row.payload_json);
+        return {
+          id: obj.id || row.id,
+          nome: obj.nome || "",
+          method: obj.method || "GET",
+          path: obj.path || "/",
+          active: obj.active === 1 || obj.active === true,
+          scenarios: Array.isArray(obj.scenarios) ? obj.scenarios : JSON.parse(obj.scenarios || "[]"),
+          criadoEm: obj.criadoEm || row.criadoEm,
+          atualizadoEm: obj.atualizadoEm || row.atualizadoEm
+        };
+      } catch (e) {
+        // fallback para row tradicional
+      }
+    }
+    return {
+      id: row.id,
+      nome: row.nome,
+      method: row.method,
+      path: row.path,
+      active: row.active === 1,
+      scenarios: JSON.parse(row.scenarios || "[]"),
+      criadoEm: row.criadoEm,
+      atualizadoEm: row.atualizadoEm
+    };
+  });
 }
 
 async function writeMirrors(mirrors) {
+  await ensureDb();
   await turso.execute("DELETE FROM mirrors");
   for (const mirror of mirrors) {
-    await turso.execute({
-      sql: `INSERT INTO mirrors (id, nome, method, path, active, scenarios, criadoEm, atualizadoEm) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      args: [mirror.id, mirror.nome, mirror.method, mirror.path, mirror.active ? 1 : 0, 
-              JSON.stringify(mirror.scenarios), mirror.criadoEm, mirror.atualizadoEm]
-    });
+    // Tenta inserção no schema novo; em caso de falha, grava em payload_json (schema antigo)
+    try {
+      await turso.execute({
+        sql: `INSERT INTO mirrors (id, nome, method, path, active, scenarios, criadoEm, atualizadoEm) 
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        args: [mirror.id, mirror.nome, mirror.method, mirror.path, mirror.active ? 1 : 0,
+                JSON.stringify(mirror.scenarios), mirror.criadoEm, mirror.atualizadoEm]
+      });
+    } catch (err) {
+      const now = new Date().toISOString();
+      // fallback attempts: try simple payload_json, then include English timestamp columns
+      try {
+        await turso.execute({
+          sql: `INSERT INTO mirrors (id, payload_json) VALUES (?, ?)` ,
+          args: [mirror.id, JSON.stringify(mirror)]
+        });
+      } catch (e1) {
+        try {
+          await turso.execute({
+            sql: `INSERT INTO mirrors (id, payload_json, created_at, updated_at) VALUES (?, ?, ?, ?)` ,
+            args: [mirror.id, JSON.stringify(mirror), mirror.criadoEm || now, mirror.atualizadoEm || now]
+          });
+        } catch (e2) {
+          try {
+            await turso.execute({
+              sql: `INSERT INTO mirrors (id, payload_json, criadoEm, atualizadoEm) VALUES (?, ?, ?, ?)` ,
+              args: [mirror.id, JSON.stringify(mirror), mirror.criadoEm || now, mirror.atualizadoEm || now]
+            });
+          } catch (e3) {
+            console.error('writeMirrors failed for mirror', mirror.id, e3);
+            throw e3;
+          }
+        }
+      }
+    }
   }
 }
 
 // ========== CRUD MASSAS ==========
 
 async function readMassas() {
+  await ensureDb();
   const result = await turso.execute("SELECT * FROM massas ORDER BY criadoEm DESC");
   return result.rows.map(row => ({
     id: row.id,
@@ -98,6 +228,7 @@ async function readMassas() {
 }
 
 async function writeMassas(massas) {
+  await ensureDb();
   await turso.execute("DELETE FROM massas");
   for (const massa of massas) {
     await turso.execute({
@@ -137,6 +268,7 @@ function toMirror(payload, existing = {}) {
     method: String(payload.method || "GET").trim().toUpperCase(),
     path: String(payload.path || "/").trim(),
     active: payload.active !== false,
+    chaos: payload.chaos || null,
     scenarios: Array.isArray(payload.scenarios) ? payload.scenarios : [],
     criadoEm: existing.criadoEm || now,
     atualizadoEm: now
@@ -281,9 +413,9 @@ app.get("/api/ura/consulta", async (req, res) => {
 // Mock endpoints
 app.all("*", async (req, res) => {
   if (req.path.startsWith("/api") || req.path.startsWith("/docs") || req.path === "/openapi.json") {
-    return;
+    return res.status(404).json({ error: "Endpoint nao encontrado" });
   }
-  
+
   const mirrors = await readMirrors();
   const mirror = mirrors.find(m => m.active && normalize(m.method) === normalize(req.method) && normalize(m.path) === normalize(req.path));
   

@@ -64,6 +64,7 @@ function toMirror(payload, existing = {}) {
     method: String(payload.method || "GET").trim().toUpperCase(),
     path: pathValue.startsWith("/") ? pathValue : `/${pathValue}`,
     active: payload.active !== false,
+    chaos: payload.chaos || null,
     scenarios: Array.isArray(payload.scenarios) ? payload.scenarios : [],
     criadoEm: existing.criadoEm || now,
     atualizadoEm: now

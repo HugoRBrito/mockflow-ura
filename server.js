@@ -1,3 +1,4 @@
+require("dotenv").config();
 const express = require("express");
 const path = require("path");
 const { randomUUID } = require("crypto");
@@ -5,7 +6,8 @@ const { createClient } = require("@libsql/client");
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
-const API_KEY = process.env.API_KEY || "";
+const TURSO_DATABASE_URL = process.env.TURSO_DATABASE_URL || process.env.TURSO_DB_URL || "";
+const TURSO_AUTH_TOKEN = process.env.TURSO_AUTH_TOKEN || process.env.TURSO_DB_AUTH_TOKEN || "";
 
 // ─── TURSO CLIENT ─────────────────────────────────────────────────────────────
 // Variáveis de ambiente necessárias na Vercel:
@@ -16,8 +18,8 @@ let _db = null;
 function getDb() {
   if (!_db) {
     _db = createClient({
-      url: process.env.TURSO_DATABASE_URL,
-      authToken: process.env.TURSO_AUTH_TOKEN,
+      url: TURSO_DATABASE_URL,
+      authToken: TURSO_AUTH_TOKEN,
     });
   }
   return _db;
@@ -167,15 +169,6 @@ async function loadLogsFromDb() {
   } catch {
     requestLogs = [];
   }
-}
-
-// ─── AUTH ─────────────────────────────────────────────────────────────────────
-
-function requireUraKey(req, res, next) {
-  if (!API_KEY) return next();
-  const key = req.get("x-api-key") || req.query.apiKey;
-  if (key !== API_KEY) return res.status(401).json({ encontrado: false, codigo: "NAO_AUTORIZADO", mensagem: "API key invalida ou ausente." });
-  next();
 }
 
 // ─── VALIDATION ───────────────────────────────────────────────────────────────
@@ -584,7 +577,7 @@ app.delete("/api/massas/:id", async (req, res, next) => {
 
 // ─── ROUTES: URA ──────────────────────────────────────────────────────────────
 
-app.get("/api/ura/consulta", requireUraKey, async (req, res, next) => {
+app.get("/api/ura/consulta", async (req, res, next) => {
   try {
     const campo = normalize(req.query.campo || "telefone");
     const valor = normalize(req.query.valor);
@@ -598,7 +591,7 @@ app.get("/api/ura/consulta", requireUraKey, async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-app.get("/api/ura/telefone/:telefone", requireUraKey, async (req, res, next) => {
+app.get("/api/ura/telefone/:telefone", async (req, res, next) => {
   try {
     const massas = await readMassas();
     const massa = massas.find(m => normalize(m.telefone) === normalize(req.params.telefone) && normalize(m.status) === "ativa");
@@ -644,11 +637,11 @@ app.get("/docs", (_req, res) => {
 
 // ─── MOCK CATCH-ALL ───────────────────────────────────────────────────────────
 
-app.all(["/mock/:slug", "/mock/:slug/*"], requireUraKey, async (req, res, next) => {
+app.all(["/mock/:slug", "/mock/:slug/*"], async (req, res, next) => {
   await handleMirrorRequest(req, res, next, `/${req.params[0] || ""}`, req.params.slug);
 });
 
-app.all("*", requireUraKey, async (req, res, next) => {
+app.all("*", async (req, res, next) => {
   if (req.path.startsWith("/api") || req.path.startsWith("/docs") || req.path === "/openapi.json") return next();
   await handleMirrorRequest(req, res, next, req.path);
 });

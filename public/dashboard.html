@@ -209,6 +209,13 @@ code{background:#25252b;padding:.1rem .3rem;border-radius:.25rem;font-family:'Co
 		<a href="index.html" class="nav-btn" style="color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); background: rgba(239, 68, 68, 0.05); padding: 0.4rem 0.8rem; border-radius: 0.375rem; display: inline-flex; align-items: center; gap: 0.35rem; transition: all 0.2s; text-decoration: none;">
 		  <span>🚪</span> Sair
 		</a>
+        <div style="display:flex;align-items:center;gap:.5rem;margin-left:8px">
+          <label style="font-size:.78rem;color:#a1a1aa;margin:0">QA Mode</label>
+          <label class="toggle" title="Ativar modo QA (relaxa validações)">
+            <input type="checkbox" id="qa-mode-toggle" onchange="handleQaToggle(event)">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
     </div>
   </div>
 </nav>
@@ -363,6 +370,13 @@ code{background:#25252b;padding:.1rem .3rem;border-radius:.25rem;font-family:'Co
       <div id="scenarios-list"></div>
     </div>
     <div class="modal-foot">
+      <div style="display:flex;align-items:center;gap:.6rem;margin-right:auto">
+        <label style="font-size:.82rem;color:#a1a1aa;margin:0">Ao criar:</label>
+        <select id="api-save-mode" style="width:220px;padding:.35rem .6rem;background:#25252b;border:1px solid #2e2e35;border-radius:.45rem;color:#e4e4e7">
+          <option value="review">Abrir para revisão (padrão)</option>
+          <option value="auto">Salvar automaticamente</option>
+        </select>
+      </div>
       <button class="btn btn-secondary" onclick="closeApiModal()">Cancelar</button>
       <button class="btn btn-primary" onclick="saveApi()" id="btn-save-api">💾 Salvar API</button>
     </div>
@@ -405,7 +419,10 @@ code{background:#25252b;padding:.1rem .3rem;border-radius:.25rem;font-family:'Co
       <div class="form-group">
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <label style="margin:0;">📥 Response Body</label>
-          <button class="btn btn-ghost btn-sm" style="color:#818cf8; padding:0 4px;" onclick="formatCM(window.cmScBody)">✨ Formatar</button>
+          <div style="display:flex;gap:.4rem;align-items:center">
+            <button class="btn btn-ghost btn-sm" style="color:#818cf8; padding:0 4px;" onclick="formatCM(window.cmScBody)">✨ Formatar</button>
+            <button class="btn btn-ghost btn-sm" style="color:#6ee7b7; padding:0 6px;" onclick="generateArrayExamples()">➕ Gerar exemplos</button>
+          </div>
         </div>
         <textarea id="sc-body" rows="6" placeholder='{"codigo":200,"mensagem":"sucesso"}'></textarea>
 		<small>Cole aqui o response que será retornado pela API</small>
@@ -434,6 +451,7 @@ code{background:#25252b;padding:.1rem .3rem;border-radius:.25rem;font-family:'Co
     </div>
     <div class="modal-foot">
       <button class="btn btn-secondary" onclick="closeScenarioModal()">Voltar</button>
+      <button class="btn btn-ghost btn-sm" onclick="createApiFromScenario()" style="margin-right:.5rem">Criar API a partir do template</button>
       <button class="btn btn-primary" onclick="saveScenario()">Confirmar Cenário</button>
     </div>
   </div>
@@ -455,6 +473,23 @@ function showToast(msg, type = 'success') {
   setTimeout(() => div.remove(), 4000);
 }
 
+// QA MODE: salva em localStorage e altera comportamento de validação para facilitar QA
+const QA_MODE_KEY = 'mockflow.qaMode';
+function getQaMode() {
+  try { return localStorage.getItem(QA_MODE_KEY) === '1'; } catch { return false; }
+}
+function setQaMode(v) {
+  try { localStorage.setItem(QA_MODE_KEY, v ? '1' : '0'); } catch {}
+  const el = document.getElementById('qa-mode-toggle');
+  if (el) el.checked = !!v;
+}
+function handleQaToggle(e) {
+  const on = !!(e && e.target && e.target.checked);
+  setQaMode(on);
+  showToast(`QA Mode ${on ? 'ativado' : 'desativado'}`);
+}
+
+
 // INICIALIZADOR PRINCIPAL
 document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll(".nav-tab").forEach(tab => {
@@ -474,6 +509,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   cmChaosBody = CodeMirror.fromTextArea(document.getElementById('chaos-body'), { mode: "application/json", theme: "dracula", lineNumbers: true });
 
+  // Inicializa estado do QA mode
+  setQaMode(getQaMode());
+
   loadApis();
   loadDashboard();
   initLogStream();
@@ -488,6 +526,11 @@ function getCachedApis() {
   } catch {
     return [];
   }
+}
+
+async function adminFetch(url, options = {}) {
+  const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
+  return fetch(url, { ...options, headers });
 }
 
 function setCachedApis(nextApis) {
@@ -513,6 +556,20 @@ function formatCM(editorInstance) {
   }
 }
 
+// UX: Manage save button state (spinner / disable)
+function setSaveInProgress(saving) {
+  const btn = document.getElementById('btn-save-api');
+  const mode = document.getElementById('api-save-mode');
+  try {
+    if (btn) {
+      btn.disabled = !!saving;
+      btn.setAttribute('aria-busy', !!saving);
+      btn.textContent = saving ? '⏳ Salvando...' : '💾 Salvar API';
+    }
+    if (mode) mode.disabled = !!saving;
+  } catch (e) { /* silent */ }
+}
+
 async function loadApis() {
   try {
     const cached = getCachedApis();
@@ -522,7 +579,7 @@ async function loadApis() {
       document.getElementById('apis-count').textContent = `${apis.length} mapeamentos`;
     }
 
-    const res = await fetch('/api/mirrors');
+    const res = await adminFetch('/api/mirrors');
     const data = await res.json();
     if (Array.isArray(data) && (data.length || !cached.length)) {
       apis = data;
@@ -537,7 +594,7 @@ async function loadApis() {
 
 async function loadDashboard() {
   try {
-    const res = await fetch('/api/mirrors');
+    const res = await adminFetch('/api/mirrors');
     let data = await res.json();
     if (!Array.isArray(data) || (!data.length && getCachedApis().length)) {
       data = getCachedApis();
@@ -640,7 +697,7 @@ async function toggleApiActive(id, active) {
   if(!api) return;
   api.active = active;
   try {
-    await fetch(`/api/mirrors/${id}`, {
+    await adminFetch(`/api/mirrors/${id}`, {
       method: 'PUT',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(api)
@@ -688,18 +745,19 @@ async function saveApi() {
 
   const url = id ? `/api/mirrors/${id}` : '/api/mirrors';
   const verb = id ? 'PUT' : 'POST';
-
+  setSaveInProgress(true);
   try {
-    const r = await fetch(url, {
+    const r = await adminFetch(url, {
       method: verb,
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(payload)
     });
     const responseText = await r.text();
-    const savedApi = responseText ? JSON.parse(responseText) : null;
+    let savedApi = null;
+    try { savedApi = responseText ? JSON.parse(responseText) : null; } catch(e) { savedApi = null; }
 
     if(!r.ok) {
-      const message = savedApi?.errors?.join(', ') || savedApi?.error || savedApi?.mensagem || "Nao foi possivel salvar a API.";
+      const message = savedApi?.errors?.join(', ') || savedApi?.error || savedApi?.mensagem || responseText || "Nao foi possivel salvar a API.";
       showToast(message, "error");
       return;
     }
@@ -712,13 +770,15 @@ async function saveApi() {
       }
       setCachedApis(apis);
       renderApisList();
-      showToast("API configurada com sucesso!");
+      showToast(`API configurada com sucesso! ${savedApi.path || savedApi.nome}`);
       closeApiModal();
       await loadApis();
       loadDashboard();
     }
-  } catch {
-    showToast("Falha técnica ao tentar salvar.", "error");
+  } catch (e) {
+    showToast("Falha técnica ao tentar salvar: " + (e && e.message ? e.message : e), "error");
+  } finally {
+    setSaveInProgress(false);
   }
 }
 
@@ -751,7 +811,7 @@ async function editApi(id) {
 async function deleteApi(id) {
   if(!confirm("Deseja realmente apagar esta API e todos os cenários vinculados?")) return;
   try {
-    const r = await fetch(`/api/mirrors/${id}`, { method: 'DELETE' });
+    const r = await adminFetch(`/api/mirrors/${id}`, { method: 'DELETE' });
     if (!r.ok && r.status !== 404) {
       showToast("Nao foi possivel excluir a API no servidor.", "error");
       return;
@@ -899,10 +959,16 @@ function saveScenario() {
   try {
     const bodyRaw = window.cmScBody ? window.cmScBody.getValue().trim() : '';
     if (!bodyRaw || bodyRaw.replace(/\s/g, '') === '{}') {
-      showToast('⚠️ O campo "Response Body" não pode ficar vazio ou ser apenas {}', 'error');
-      return;
+      if (getQaMode()) {
+        responseBody = { "qa_placeholder": true };
+        showToast('QA Mode: preenchido Response Body automaticamente', 'success');
+      } else {
+        showToast('⚠️ O campo "Response Body" não pode ficar vazio ou ser apenas {}', 'error');
+        return;
+      }
+    } else {
+      responseBody = JSON.parse(bodyRaw);
     }
-    responseBody = JSON.parse(bodyRaw);
   } catch (e) {
     showToast('JSON inválido no campo: Response Body', 'error');
     return;
@@ -911,10 +977,16 @@ function saveScenario() {
   try {
     const reqRaw = window.cmScReqExample ? window.cmScReqExample.getValue().trim() : '';
     if (!reqRaw || reqRaw.replace(/\s/g, '') === '{}') {
-      showToast('⚠️ O campo "Request Esperado" não pode ficar vazio ou ser apenas {}', 'error');
-      return;
+      if (getQaMode()) {
+        requestExample = { "qa_example": true };
+        showToast('QA Mode: preenchido Request Example automaticamente', 'success');
+      } else {
+        showToast('⚠️ O campo "Request Esperado" não pode ficar vazio ou ser apenas {}', 'error');
+        return;
+      }
+    } else {
+      requestExample = JSON.parse(reqRaw);
     }
-    requestExample = JSON.parse(reqRaw);
   } catch (e) {
     showToast('JSON inválido no campo: Request Esperado', 'error');
     return;
@@ -969,6 +1041,247 @@ function saveScenario() {
   renderScenariosList();
   closeScenarioModal();
   showToast("Cenário validado e adicionado com sucesso!");
+}
+
+// Cria uma API a partir do cenário aberto no modal (abre o modal de API com campos preenchidos)
+function createApiFromScenario() {
+  try {
+    const nome = document.getElementById('sc-nome').value.trim();
+    if (!nome) { showToast('Dê um nome para o cenário antes de criar a API!', 'error'); return; }
+
+    const matchRaw = window.cmScMatch ? window.cmScMatch.getValue().trim() : '{}';
+    const bodyRaw = window.cmScBody ? window.cmScBody.getValue().trim() : '{}';
+    const reqRaw = window.cmScReqExample ? window.cmScReqExample.getValue().trim() : '{}';
+    const reqFieldsRaw = window.cmScRequired ? window.cmScRequired.getValue().trim() : '[]';
+
+    let match, responseBody, requestExample, requiredFields;
+    try { match = JSON.parse(matchRaw || '{}'); } catch { showToast('JSON inválido no Match', 'error'); return; }
+    try { responseBody = JSON.parse(bodyRaw || '{}'); } catch { showToast('JSON inválido no Response Body', 'error'); return; }
+    try { requestExample = JSON.parse(reqRaw || '{}'); } catch { showToast('JSON inválido no Request Example', 'error'); return; }
+    try { requiredFields = JSON.parse(reqFieldsRaw || '[]'); if (!Array.isArray(requiredFields)) throw new Error(); } catch { showToast('Campos Obrigatórios inválidos', 'error'); return; }
+
+    const s = {
+      nome,
+      match,
+      responseStatus: Number(document.getElementById('sc-status').value) || 200,
+      delayMs: Number(document.getElementById('sc-delay').value) || 0,
+      responseBody,
+      requestExample,
+      requiredFields,
+      validateRequest: document.getElementById('sc-validate').value === 'true'
+    };
+
+    // Abrir modal de API e preencher com o cenário
+    openApiModal();
+    // Sugestão de nome/path
+    const slug = nome.replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'api';
+    const suggestedPath = `/${slug}`;
+
+    document.getElementById('api-nome').value = `API - ${nome}`;
+    document.getElementById('api-method').value = 'GET';
+    document.getElementById('api-path').value = suggestedPath;
+    document.getElementById('api-active').value = 'true';
+
+    currentScenarios = [
+      {
+        nome: s.nome,
+        match: s.match,
+        responseStatus: s.responseStatus,
+        delayMs: s.delayMs,
+        responseBody: s.responseBody,
+        requestExample: s.requestExample,
+        requiredFields: s.requiredFields,
+        validateRequest: s.validateRequest
+      }
+    ];
+    renderScenariosList();
+    document.getElementById('modal-api-title').textContent = "➕ Criar API (a partir do cenário)";
+    document.getElementById('modal-api').classList.add('active');
+    setTimeout(() => cmChaosBody.refresh(), 80);
+    // Fechar modal de cenário
+    closeScenarioModal();
+    // Se o usuário escolheu salvar automaticamente, dispara o saveApi()
+    const mode = (document.getElementById('api-save-mode') || {}).value || 'review';
+    if (mode === 'auto') {
+      showToast('Salvando API automaticamente...');
+      // Chamar saveApi() após um pequeno delay para garantir que o modal foi renderizado
+      setTimeout(() => saveApi(), 120);
+    } else {
+      showToast('Preenchido modal de API. Revise e clique em Salvar API.');
+    }
+  } catch (e) {
+    showToast('Erro ao criar API a partir do cenário: ' + (e.message || e), 'error');
+  }
+}
+
+// Gera N cópias de um objeto/array dentro do Response Body para facilitar testes (ex: múltiplos contratos)
+function generateArrayExamples() {
+  try {
+    // If API modal is open and has scenarios, operate on the first scenario's responseBody
+    let root;
+    const apiModalOpen = document.getElementById('modal-api') && document.getElementById('modal-api').classList.contains('active');
+    const hasApiScenarios = Array.isArray(currentScenarios) && currentScenarios.length > 0;
+    if (apiModalOpen && hasApiScenarios) {
+      root = JSON.parse(JSON.stringify(currentScenarios[0].responseBody || {}));
+    } else {
+      const raw = window.cmScBody ? window.cmScBody.getValue().trim() : '';
+      root = raw ? JSON.parse(raw) : {};
+    }
+
+    const path = prompt('Caminho onde gerar array (ex: contratos, items[0].contratos) — deixe vazio para raiz') || '';
+    const cntRaw = prompt('Quantidade de itens a gerar (ex: 3)', '3') || '3';
+    const count = Math.max(1, parseInt(cntRaw, 10) || 1);
+
+    const getAtPath = (obj, pathParts) => {
+      let cur = obj;
+      for (const p of pathParts) {
+        if (cur == null) return undefined;
+        if (/^\d+$/.test(p)) cur = cur[Number(p)]; else cur = cur[p];
+      }
+      return cur;
+    };
+    const setAtPath = (obj, pathParts, value) => {
+      if (!pathParts.length) return value;
+      const last = pathParts[pathParts.length - 1];
+      const parentParts = pathParts.slice(0, -1);
+      let cur = obj;
+      for (const p of parentParts) {
+        if (cur[p] == null) cur[p] = {};
+        cur = cur[p];
+      }
+      cur[last] = value;
+      return obj;
+    };
+
+    const normalizePath = (p) => {
+      if (!p) return [];
+      // support simple dot and bracket notation like items[0].contratos
+      const parts = [];
+      p.replace(/\[(\d+)\]/g, '.$1').split('.').forEach(part => { if (part) parts.push(part); });
+      return parts;
+    };
+
+    const parts = normalizePath(path);
+    const target = parts.length ? getAtPath(root, parts) : root;
+
+    let template;
+    if (Array.isArray(target) && target.length) template = target[0];
+    else if (Array.isArray(target) && !target.length) template = {};
+    else if (target && typeof target === 'object') template = target;
+    else if (!parts.length && (typeof root === 'object')) template = root;
+    else template = {};
+
+    const items = [];
+    // helpers for realistic data
+    const randInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+    const uuid = () => {
+      try { return crypto.randomUUID(); } catch { // fallback
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+          const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+          return v.toString(16);
+        });
+      }
+    };
+    const isoDate = (daysBack = 0) => new Date(Date.now() - randInt(0, daysBack || 365) * 24*3600*1000).toISOString();
+    const fakeName = () => {
+      const fn = ['Ana','João','Carlos','Mariana','Paulo','Beatriz','Lucas','Marina','Rafael','Clara'];
+      const ln = ['Silva','Souza','Oliveira','Costa','Almeida','Pereira','Lima','Gomes','Ribeiro','Dias'];
+      return `${fn[randInt(0,fn.length-1)]} ${ln[randInt(0,ln.length-1)]}`;
+    };
+    const fakeEmail = (name) => {
+      const dom = ['example.com','teste.com','mockflow.local','email.com'];
+      const local = (name || 'user').toLowerCase().replace(/[^a-z0-9]+/g, '.');
+      return `${local}${randInt(1,99)}@${dom[randInt(0,dom.length-1)]}`;
+    };
+    const fakeCpf = () => String(Math.floor(Math.random() * 9e10) + 1e10).slice(0,11);
+    const fakeMoney = (min=10, max=1000) => (Math.round((Math.random() * (max-min) + min) * 100) / 100);
+
+    function enrichValues(obj, idx) {
+      if (obj == null) return obj;
+      if (Array.isArray(obj)) return obj.map(v => enrichValues(v, idx));
+      if (typeof obj !== 'object') return obj;
+
+      for (const k of Object.keys(obj)) {
+        const val = obj[k];
+        const key = k.toLowerCase();
+
+        if (val == null || typeof val === 'object') {
+          obj[k] = enrichValues(val, idx);
+          continue;
+        }
+
+        if (/uuid|guid|id$|^id$|identificador|codigo|cod/i.test(key)) {
+          obj[k] = uuid();
+          continue;
+        }
+
+        if (/date|data|dt|timestamp|hora/i.test(key)) {
+          obj[k] = isoDate(365);
+          continue;
+        }
+
+        if (/nome|name|cliente|titular/i.test(key)) {
+          obj[k] = fakeName();
+          continue;
+        }
+
+        if (/email|e-mail/i.test(key)) {
+          obj[k] = fakeEmail(obj.name || obj.nome || 'user');
+          continue;
+        }
+
+        if (/cpf|cnpj|documento/i.test(key)) {
+          obj[k] = fakeCpf();
+          continue;
+        }
+
+        if (/valor|amount|price|total|saldo/i.test(key)) {
+          obj[k] = fakeMoney(10, 5000);
+          continue;
+        }
+
+        // if value is a short string that looks like a placeholder, diversify it
+        if (typeof val === 'string' && val.length && val.length < 40) {
+          obj[k] = `${val}-${idx+1}`;
+          continue;
+        }
+
+        if (typeof val === 'number') {
+          obj[k] = val + idx;
+          continue;
+        }
+      }
+      return obj;
+    }
+
+    for (let i = 0; i < count; i++) {
+      const copy = JSON.parse(JSON.stringify(template));
+      enrichValues(copy, i);
+      if (copy && Object.keys(copy).length === 0) copy._index = i+1;
+      items.push(copy);
+    }
+
+    if (parts.length) setAtPath(root, parts, items);
+    else root = items;
+
+    // If API modal was target, write back into currentScenarios[0].responseBody and refresh scenario list
+    if (apiModalOpen && hasApiScenarios) {
+      currentScenarios[0].responseBody = root;
+      renderScenariosList();
+      // if scenario editor open, update it too
+      if (window.cmScBody) {
+        window.cmScBody.setValue(JSON.stringify(root, null, 2));
+        setTimeout(() => window.cmScBody.refresh(), 80);
+      }
+    } else {
+      window.cmScBody.setValue(JSON.stringify(root, null, 2));
+      setTimeout(() => window.cmScBody.refresh(), 80);
+    }
+
+    showToast(`Gerados ${count} exemplos em ${path || 'raiz'}`);
+  } catch (e) {
+    showToast('Falha ao gerar exemplos: ' + (e.message || e), 'error');
+  }
 }
 
 // STREAM DE LOGS AO VIVO (SSE)
@@ -1119,7 +1432,7 @@ function importApis(input) {
           scenarios: item.scenarios || []
         };
 
-        const r = await fetch('/api/mirrors', {
+        const r = await adminFetch('/api/mirrors', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)

@@ -55,6 +55,33 @@ function applyTemplate(value, req) {
   return value;
 }
 
+function shouldApplyChaos(mirror) {
+  if (!mirror || !mirror.chaos || !mirror.chaos.enabled) return false;
+  const rate = Number(mirror.chaos.rate || 0);
+  return rate > 0 && Math.random() * 100 < rate;
+}
+
+function getChaosDelay(mirror) {
+  const jitter = Number(mirror.chaos?.jitter || 0);
+  return jitter > 0 ? jitter : 0;
+}
+
+function sendChaosResponse(mirror, req, res) {
+  if (!shouldApplyChaos(mirror)) return false;
+
+  const status = Number(mirror.chaos.status) || 500;
+  const body = mirror.chaos.body || {};
+  const delay = getChaosDelay(mirror);
+
+  const send = () => res.status(status).json(body);
+  if (delay > 0) {
+    setTimeout(send, delay);
+  } else {
+    send();
+  }
+  return true;
+}
+
 function toMirror(payload, existing = {}) {
   const now = new Date().toISOString();
   const pathValue = String(payload.path || "/").trim();
@@ -267,6 +294,10 @@ app.all("*", async (req, res) => {
     if (missing.length) {
       return res.status(400).json({ error: "Campos obrigatórios ausentes", missing_fields: missing });
     }
+  }
+  
+  if (sendChaosResponse(mirror, req, res)) {
+    return;
   }
   
   if (selectedScenario.delayMs) {

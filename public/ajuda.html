@@ -77,6 +77,7 @@
         .badge-post { background: #6366f1; color: white; }
         .badge-put { background: #f59e0b; color: black; }
         .badge-delete { background: #ef4444; color: white; }
+        .badge-tech { background: #1a1a1f; color: #818cf8; border: 1px solid #2e2e35; }
 
         table {
             width: 100%;
@@ -109,14 +110,144 @@
             border-top: 1px solid #2e2e35;
             margin-top: 2rem;
         }
+
+        /* Estilos da seção de tecnologias */
+        .tech-section {
+            background: linear-gradient(135deg, #1a1a1f 0%, #131318 100%);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border: 1px solid #2e2e35;
+        }
+
+        .tech-badge-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin: 1rem 0;
+        }
+
+        .tech-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .tech-card {
+            background: #0f0f12;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            border-left: 3px solid #6366f1;
+        }
+
+        .tech-card h4 {
+            color: #6366f1;
+            font-size: 0.85rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .tech-card ul {
+            padding-left: 1.2rem;
+            list-style: none;
+        }
+
+        .tech-card li {
+            color: #a1a1aa;
+            font-size: 0.8rem;
+            margin: 0.3rem 0;
+        }
+
+        .tech-card li strong {
+            color: #e4e4e7;
+        }
+
+        .turso-highlight {
+            background: linear-gradient(135deg, #1e1b4b 0%, #2e1065 100%);
+            border: 1px solid #6366f1;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .turso-highlight p {
+            margin: 0;
+            font-size: 0.8rem;
+            color: #c4b5fd;
+        }
+
+        .turso-highlight strong {
+            color: #a78bfa;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>📖 MockFlow URA</h1>
+        <h1>📚 MockFlow URA</h1>
         <p>Sistema de Simulação de APIs para NICE CXone</p>
 
         <hr>
+
+        <!-- SEÇÃO DE TECNOLOGIAS -->
+        <div class="tech-section">
+            <h2 style="margin-top: 0; border-bottom: none; padding-bottom: 0;">🛠️ Tecnologias Utilizadas neste Sistema</h2>
+            
+            <div class="tech-badge-container">
+                <span class="badge-tech" style="padding: 0.3rem 0.8rem; border-radius: 2rem;">Node.js</span>
+                <span class="badge-tech" style="padding: 0.3rem 0.8rem; border-radius: 2rem;">Express.js</span>
+                <span class="badge-tech" style="padding: 0.3rem 0.8rem; border-radius: 2rem;">Turso (libSQL)</span>
+                <span class="badge-tech" style="padding: 0.3rem 0.8rem; border-radius: 2rem;">SQLite</span>
+                <span class="badge-tech" style="padding: 0.3rem 0.8rem; border-radius: 2rem;">WebSockets</span>
+                <span class="badge-tech" style="padding: 0.3rem 0.8rem; border-radius: 2rem;">GraphQL</span>
+                <span class="badge-tech" style="padding: 0.3rem 0.8rem; border-radius: 2rem;">Vercel</span>
+                <span class="badge-tech" style="padding: 0.3rem 0.8rem; border-radius: 2rem;">Netlify</span>
+                <span class="badge-tech" style="padding: 0.3rem 0.8rem; border-radius: 2rem;">OpenTelemetry</span>
+                <span class="badge-tech" style="padding: 0.3rem 0.8rem; border-radius: 2rem;">Swagger</span>
+            </div>
+
+            <div class="tech-grid">
+                <div class="tech-card">
+                    <h4>🎯 Backend</h4>
+                    <ul>
+                        <li><strong>Node.js</strong> - Runtime JavaScript</li>
+                        <li><strong>Express.js</strong> - Framework web</li>
+                        <li><strong>dotenv</strong> - Variáveis de ambiente</li>
+                        <li><strong>node-fetch</strong> - Requisições HTTP</li>
+                    </ul>
+                </div>
+                
+                <div class="tech-card">
+                    <h4>💾 Banco de Dados</h4>
+                    <ul>
+                        <li><strong>Turso (libSQL)</strong> - Banco distribuído</li>
+                        <li><strong>SQLite</strong> - Banco local</li>
+                        <li><strong>JSON</strong> - Armazenamento de dados</li>
+                    </ul>
+                </div>
+                
+                <div class="tech-card">
+                    <h4>🎨 Frontend</h4>
+                    <ul>
+                        <li><strong>HTML5</strong> - Estrutura</li>
+                        <li><strong>CSS3</strong> - Estilização</li>
+                        <li><strong>JavaScript (Vanilla)</strong> - Interatividade</li>
+                    </ul>
+                </div>
+                
+                <div class="tech-card">
+                    <h4>☁️ Infraestrutura</h4>
+                    <ul>
+                        <li><strong>Vercel</strong> - Hospedagem</li>
+                        <li><strong>Netlify</strong> - Deploy alternativo</li>
+                        <li><strong>WebSockets (ws)</strong> - Comunicação real-time</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="turso-highlight">
+                <p>✨ <strong>Destaque: Banco de Dados Turso</strong> — Plataforma distribuída que combina SQLite com nuvem global, oferecendo baixa latência, replicação automática e escalabilidade horizontal.</p>
+            </div>
+        </div>
 
         <h2>🔍 Visão Geral</h2>
         <p>Simulador de APIs para testes de integração com o <strong>NICE CXone</strong>. Permite criar APIs falsas que respondem de forma personalizada baseada nos dados enviados pela URA.</p>
@@ -126,7 +257,7 @@
             <pre>1. URA envia request → 2. Sistema aplica MATCH → 3. Retorna resposta configurada</pre>
         </div>
 
-        <h2>🎭 Cenários</h2>
+        <h2>🎬 Cenários</h2>
         <p>Cada API pode ter múltiplos cenários. O sistema escolhe baseado no MATCH.</p>
         <div class="code">
             <pre>// Exemplo: API /clientes
@@ -135,7 +266,7 @@ Cenário 2: {"cpf": "222"} → {"status": "BLOQUEADO"}
 Cenário 3: {} (fallback) → {"status": "NORMAL"}</pre>
         </div>
 
-        <h2>🎯 Match</h2>
+        <h2>🔍 Match</h2>
         <p>Condições para ativar um cenário.</p>
         <div class="code">
             <pre>// Por CPF
@@ -195,7 +326,7 @@ Match: {}
 Response: {"status": "NORMAL"}</pre>
         </div>
 
-        <h2>💪 Dicas</h2>
+        <h2>💬 Dicas</h2>
         <ul style="color: #a1a1aa; margin-left: 1.5rem;">
             <li>Sempre tenha um cenário FALLBACK com match {}</li>
             <li>Use nomes descritivos nos cenários</li>
@@ -213,7 +344,7 @@ Response: {"status": "NORMAL"}</pre>
         </table>
 
         <div class="footer">
-            MockFlow URA - NICE CXone Simulator v1.0
+            MockFlow URA - NICE CXone Simulator v1.0 | 🚀 Powered by Node.js + Turso
         </div>
     </div>
 </body>

@@ -209,12 +209,13 @@ code{background:#25252b;padding:.1rem .3rem;border-radius:.25rem;font-family:'Co
 		<a href="index.html" class="nav-btn" style="color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); background: rgba(239, 68, 68, 0.05); padding: 0.4rem 0.8rem; border-radius: 0.375rem; display: inline-flex; align-items: center; gap: 0.35rem; transition: all 0.2s; text-decoration: none;">
 		  <span>🚪</span> Sair
 		</a>
-        <div style="display:flex;align-items:center;gap:.5rem;margin-left:8px">
+        <div style="display:flex;align-items:center;gap:.5rem;margin-left:8px;background:#25252b;padding:.4rem .85rem;border-radius:.5rem;border:1px solid #2e2e35">
           <label style="font-size:.78rem;color:#a1a1aa;margin:0">QA Mode</label>
           <label class="toggle" title="Ativar modo QA (relaxa validações)">
             <input type="checkbox" id="qa-mode-toggle" onchange="handleQaToggle(event)">
             <span class="toggle-slider"></span>
           </label>
+          <span id="qa-status-badge" style="font-size:.65rem;font-weight:700;padding:.2rem .5rem;border-radius:.25rem;background:#3f1f1f;color:#f87171;display:none">🔴 INATIVO</span>
         </div>
     </div>
   </div>
@@ -486,7 +487,24 @@ function setQaMode(v) {
 function handleQaToggle(e) {
   const on = !!(e && e.target && e.target.checked);
   setQaMode(on);
-  showToast(`QA Mode ${on ? 'ativado' : 'desativado'}`);
+  updateQaModeStatus();
+  showToast(`QA Mode ${on ? 'ativado ✅' : 'desativado'} ${on ? '- Validações relaxadas' : ''}`);
+}
+
+function updateQaModeStatus() {
+  const badge = document.getElementById('qa-status-badge');
+  const toggle = document.getElementById('qa-mode-toggle');
+  if (toggle && toggle.checked) {
+    badge.textContent = '🟢 ATIVO';
+    badge.style.background = '#064e3b';
+    badge.style.color = '#6ee7b7';
+    badge.style.display = 'inline-block';
+  } else {
+    badge.textContent = '🔴 INATIVO';
+    badge.style.background = '#3f1f1f';
+    badge.style.color = '#f87171';
+    badge.style.display = 'inline-block';
+  }
 }
 
 
